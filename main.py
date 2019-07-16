@@ -12,11 +12,11 @@ d_ver = 0.9
 
 radar_to_use = [0]
 radars_all = [
-    ('1443A', 'COM6', 'COM7', './iwr1443/cfg/zoneA.cfg'),
-    ('1443B', 'COM17', 'COM16', './iwr1443/cfg/zoneB.cfg'),
-    ('1642', 'COM12', 'COM13', './iwr1642/cfg/profile.cfg'),
-    ('6843A', 'COM19', 'COM18', './iwr6843/cfg/profileA.cfg'),
-    ('6843B', 'COM17', 'COM16', './iwr6843/cfg/profileB.cfg')
+    ('1443A', 'COM6', 'COM7', './iwr1443/cfg/zoneA.cfg'),       # 0
+    ('1443B', 'COM17', 'COM16', './iwr1443/cfg/zoneB.cfg'),     # 1
+    ('1642', 'COM12', 'COM13', './iwr1642/cfg/profile.cfg'),    # 2
+    ('6843A', 'COM19', 'COM18', './iwr6843/cfg/profileA.cfg'),  # 3
+    ('6843B', 'COM17', 'COM16', './iwr6843/cfg/profileB.cfg')   # 4
     ]
 
 
@@ -24,17 +24,18 @@ def vis_thread(num_radar, queues, runflag):
     if num_radar == 1:
         train_frame = 1000
         fm0 = Frame_Manager_Base(max_length=10, ylim=[0, 3], zlim=[-1, 1])
-        fm1 = Frame_Manager_Foreground(max_length=10, train_frame=train_frame)
-        fm2 = Frame_Manager_Cluster(max_length=1, min_points=15)
+        fm1 = Frame_Manager_Foreground(max_length=1, train_frame=train_frame)
+        fm2 = Frame_Manager_Cluster(max_length=1, min_points=5)
 
         # vis = Visualizer_Multi(queues, [fm1, fm2], n_row=1, n_col=2)
         # vis = Visualizer_3D(queues, [fm0, fm2])
         # detector = Detector_Human()
         vis = Visualizer_Cam_Single(
-            queues, [fm1, fm2], detector=None, detector_start=0, save=True)
+            queues, [fm0, fm1, fm2], detector=None, detector_start=0, save=False)
+        # vis = Visualizer_Multi(queues, [fm0, fm1, fm2], n_row=1, n_col=3)
         # vis = Visualizer_Background(queues, [], save=True)
         vis.run(runflag)
-
+ 
 
 def radar_thread(queue, runflag, radar):
     name, cfg_port, data_port, cfg_file = radar
