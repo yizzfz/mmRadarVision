@@ -27,7 +27,7 @@ def main():
     ax0 = fig.add_subplot(111)
     cv2.namedWindow('img')
     
-    i = 1000
+    i = 2000
     while i < len(data):
         print(f'{i}/{len(data)}')
         cmd = read_frame_with_display(data[i], ax0)
@@ -39,6 +39,8 @@ def main():
 
 def read_frame_with_display(data, ax0):
     boxes, img, frames = data
+    if len(boxes) == 0:
+        return
 
     ax0.cla()
     ax0.set_xlim(xlim)
@@ -52,11 +54,11 @@ def read_frame_with_display(data, ax0):
 
     if len(frames) < 4:
         return
-    xs, ys, zs = np.split(frames[1].T, 3)
-    ax0.plot(xs, ys, 'b.')
+    # xs, ys, zs = np.split(frames[1].T, 3)
+    # ax0.plot(xs, ys, 'b.')
 
-    xs, ys, zs = np.split(frames[3].T, 3)
-    ax0.plot(xs, ys, 'g.')
+    # xs, ys, zs = np.split(frames[3].T, 3)
+    # ax0.plot(xs, ys, 'g.')
 
     clusters = cluster_DBSCAN(frames[1])
     if clusters is None:
@@ -97,30 +99,59 @@ def read_frame_with_display(data, ax0):
         # if key == ord('='):
         #     return '+10'
 
+    left_bound = -AoV
+    right_bound = AoV
 
-    for i, (x1, y1, x2, y2) in enumerate(boxes):
-        cam_left = (x1 - cam_w/2)/(cam_w/2) * AoV
-        cam_right = (x2 - cam_w/2)/(cam_w/2) * AoV
-            
-        for c in clusters:
-            cxs, cys, czs = np.split(c.T, 3)
-            centroid = np.average(c, axis=0)
-            leftmost = np.min(c, axis=0)
-            rightmost = np.max(c, axis=0)
+    for c in clusters:
+        cxs, cys, czs = np.split(c.T, 3)
+        centroid = np.average(c, axis=0)
+        leftmost = np.min(c, axis=0)
+        rightmost = np.max(c, axis=0)
+        a1 = np.arctan(centroid[0]/centroid[1])
+        a2 = np.arctan(leftmost[0]/leftmost[1])
+        a3 = np.arctan(rightmost[0]/rightmost[1])
+        ax0.plot(cxs, cys, 'b.')
 
-            a1 = np.arctan(centroid[0]/centroid[1])
-            a2 = np.arctan(leftmost[0]/leftmost[1])
-            a3 = np.arctan(rightmost[0]/rightmost[1])
-            if a1 > cam_left and a1 < cam_right and abs(a2-cam_left) < 0.1 and abs(a3-cam_right) < 0.1:
-                print('True')
+        label = 'None'
+
+        for i, (x1, y1, x2, y2) in enumerate(boxes):
+            cam_left = (x1 - cam_w/2)/(cam_w/2) * AoV
+            cam_right = (x2 - cam_w/2)/(cam_w/2) * AoV
+
+            # ignore if centre out of bound
+            if a1 < cam_left or a1 > cam_right:
+                continue
+
+            # ignore if centre not close to camera centre
+            if not close_to(a1, (cam_left + cam_right)/2):
+                continue
+
+
+            # true if two overlap by 80%
+            if close_to(a2, cam_left) and close_to(a3, cam_right) and (a3-a2)/(cam_right - cam_left)>0.7:
                 ax0.plot(cxs, cys, 'r.')
-                plt.waitforbuttonpress()
+                label = 'True'
+                break
 
-            
+            # if not far_to(a2, cam_left) and not far_to(a3, cam_right):
+            #     ax0.plot(cxs, cys, 'g.')
+            #     label = 'Discard'
 
-    plt.waitforbuttonpress(timeout=0.005)
+        # false if in aov and not fit into any camera box
+        if label == 'None' and a2 > left_bound and a3 < right_bound:
+            if (a3-a2)/(cam_right - cam_left) < 0.5 or far_to(a2, cam_left) or far_to(a3, cam_right):
+                label = 'False'
+                ax0.plot(cxs, cys, 'y.')
+
+    plt.waitforbuttonpress()
     return 
 
+
+def close_to(a, b):
+    return abs(a-b) < 0.1
+
+def far_to(a, b):
+    return abs(a-b) > 0.3
 
 def read_data(data_file):
     with open(data_file, 'rb') as f:

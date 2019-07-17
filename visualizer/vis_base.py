@@ -132,6 +132,9 @@ class Visualizer_Cam_Base():
             timestamp = datetime.datetime.now().strftime('%m%d%H%M')
             self.save = f'./data/{timestamp}.pkl'
 
+        self.cam_w = 1920
+        self.cam_h = 1080
+
     def run(self, runflag):
         fig = self.create_fig()
         cv2.namedWindow("cam")
@@ -141,6 +144,11 @@ class Visualizer_Cam_Base():
             runflag.value = 0
             return
         
+        vc.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M','J','P','G'))
+        vc.set(cv2.CAP_PROP_FRAME_HEIGHT, cam_h)
+        vc.set(cv2.CAP_PROP_FRAME_WIDTH, cam_w)
+        vc.set(cv2.CAP_PROP_FPS, 30)
+
         w = vc.get(cv2.CAP_PROP_FRAME_WIDTH)
         h = vc.get(cv2.CAP_PROP_FRAME_HEIGHT)
         fps = vc.get(cv2.CAP_PROP_FPS)

@@ -4,6 +4,7 @@ from radar_handler import Radar
 from visualizer import Visualizer_3D, Visualizer_Single, Visualizer_Multi, Visualizer_Cam_Single, Visualizer_Background
 from frame_manager import Frame_Manager_Base, Frame_Manager_Cluster, Frame_Manager_Foreground
 from detector import Detector_Human
+from config import radar_ports
 
 radar_height = 1.5
 d_hor = 1.5
@@ -11,13 +12,7 @@ d_ver = 0.9
 
 
 radar_to_use = [0]
-radars_all = [
-    ('1443A', 'COM6', 'COM7', './iwr1443/cfg/zoneA.cfg'),       # 0
-    ('1443B', 'COM17', 'COM16', './iwr1443/cfg/zoneB.cfg'),     # 1
-    ('1642', 'COM12', 'COM13', './iwr1642/cfg/profile.cfg'),    # 2
-    ('6843A', 'COM19', 'COM18', './iwr6843/cfg/profileA.cfg'),  # 3
-    ('6843B', 'COM17', 'COM16', './iwr6843/cfg/profileB.cfg')   # 4
-    ]
+
 
 
 def vis_thread(num_radar, queues, runflag):
@@ -44,7 +39,7 @@ def radar_thread(queue, runflag, radar):
     
 
 def main():
-    radars = [radars_all[i] for i in radar_to_use]
+    radars = [radar_ports[i] for i in radar_to_use]
     runflag = multiprocessing.Value('i', 1)
     num_radar = len(radar_to_use)
     queues = []
