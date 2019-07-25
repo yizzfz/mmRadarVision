@@ -90,7 +90,7 @@ class Radar():
                 magic, version, length, platform, frameNum, cpuCycles, numObj, numTLVs, _ = struct.unpack(
                     'Q8I', data[:header_size])
         except struct.error:
-            self.log('Failed decoding hearder')
+            self.log('Failed decoding header') 
             return None
 
         if print_flag:

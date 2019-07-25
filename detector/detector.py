@@ -4,12 +4,12 @@ import cv2
 
 class Detector_Human():
     def __init__(self, min_prob=50, out_type='array'):
-        model = os.path.join(
-            os.path.dirname(__file__), 'model', 'resnet50_coco_best_v2.0.1.h5')
-
+        model = os.path.join(os.path.dirname(__file__), 'model', 'yolo.h5')
+            # os.path.dirname(__file__), 'model', 'resnet50_coco_best_v2.0.1.h5')
         print(model)
         detector = ObjectDetection()
-        detector.setModelTypeAsRetinaNet()
+        detector.setModelTypeAsYOLOv3()
+        # detector.setModelTypeAsRetinaNet()
         detector.setModelPath(model)
         detector.loadModel()
         custom_objects = detector.CustomObjects(person=True)

@@ -1,6 +1,8 @@
-data/*.pkl
+*.pkl
 detector/model/*.h5
 .vscode
+config.py
+network/ckpts
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

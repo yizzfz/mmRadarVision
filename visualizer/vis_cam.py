@@ -2,10 +2,12 @@ from .vis_base import Visualizer_Cam_Base
 import matplotlib.pyplot as plt
 import numpy as np
 from imageai.Detection import ObjectDetection
-from sklearn.cluster import DBSCAN
+import sys
+sys.path.append("..")
+from util import cluster_DBSCAN
 
 
-AoV = 30/180*np.pi
+AoV = 40/180*np.pi
 
 
 class Visualizer_Cam_Single(Visualizer_Cam_Base):
@@ -52,6 +54,12 @@ class Visualizer_Cam_Single(Visualizer_Cam_Base):
 
 
 class Visualizer_Cam_Data(Visualizer_Cam_Base):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.keys = ['True', 'False']
+        self.data = {k: [] for k in self.keys}
+        self.save_frame = False
+
     def create_fig(self):
         plt.ion()
         fig = plt.figure()
@@ -63,28 +71,33 @@ class Visualizer_Cam_Data(Visualizer_Cam_Base):
     def plot(self, idx, fig, frame, runflag, detection=None):
         ax0 = fig
 
-        # xs, ys, zs = np.split(frame.T, 3)
+        xs, ys, zs = np.split(frame.T, 3)
+
         ax0.cla()
-        # ax0.plot(xs, ys, 'b.')
+        # ax0.plot(xs, ys, '.k')
         ax0.set_xlim(self.xlim)
         ax0.set_ylim(self.ylim)
         ax0.set_xlabel('x (m)')
         ax0.set_ylabel('y (m)')
 
-        clusters = cluster_DBSCAN(frame.T)
+        clusters = cluster_DBSCAN(frame)
+        if clusters is None:
+            return
 
         if detection is not None:
             for i, (x1, y1, x2, y2) in enumerate(detection):
+                if y2/self.cam_h < 0.9:
+                    continue
                 color = self.colors[i]
                 cam_left = (x1 - self.cam_w/2)/(self.cam_w/2) * AoV
                 cam_right = (x2 - self.cam_w/2)/(self.cam_w/2) * AoV
                 for angle in [cam_left, cam_right]:
                     if angle < 0:
                         ax0.plot([0, self.xlim[0]], [
-                            0, self.xlim[0]/np.tan(angle)], c=color)
+                            0-0.2, self.xlim[0]/np.tan(angle)-0.2], c=color)
                     elif angle > 0:
                         ax0.plot([0, self.xlim[1]], [
-                            0, self.xlim[1]/np.tan(angle)], c=color)
+                            0-0.2, self.xlim[1]/np.tan(angle)-0.2], c=color)
                     else:
                         ax0.plot([0, 0], [0, self.ylim[1]], c=color)
 
@@ -94,16 +107,19 @@ class Visualizer_Cam_Data(Visualizer_Cam_Base):
             for c in clusters:
                 cxs, cys, czs = np.split(c.T, 3)
                 centroid = np.average(c, axis=0)
-                leftmost = np.min(c, axis=0)
-                rightmost = np.max(c, axis=0)
+
                 a1 = np.arctan(centroid[0]/centroid[1])
-                a2 = np.arctan(leftmost[0]/leftmost[1])
-                a3 = np.arctan(rightmost[0]/rightmost[1])
-                ax0.plot(cxs, cys, 'b.')
+                a2 = np.min(cxs/cys)
+                a3 = np.max(cxs/cys)
+                ax0.plot(cxs, cys, '.b')
 
                 label = 'None'
+                if centroid[1] < 0.5 or centroid[1] > 2:
+                    continue
 
                 for i, (x1, y1, x2, y2) in enumerate(detection):
+                    if y2/self.cam_h < 0.9:
+                        continue
                     cam_left = (x1 - self.cam_w/2)/(self.cam_w/2) * AoV
                     cam_right = (x2 - self.cam_w/2)/(self.cam_w/2) * AoV
 
@@ -115,18 +131,26 @@ class Visualizer_Cam_Data(Visualizer_Cam_Base):
                     if not close_to(a1, (cam_left + cam_right)/2):
                         continue
 
-                    # true if two overlap by 80%
-                    if close_to(a2, cam_left) and close_to(a3, cam_right) and (a3-a2)/(cam_right - cam_left) > 0.7:
-                        ax0.plot(cxs, cys, 'r.')
+                    # if not far_to(a1, (cam_left + cam_right)/2) or (not far_to(a2, cam_left) and not far_to(a3, cam_right)):
+                    #     label = 'Discard'
+
+                    # true if two overlap by some threshold
+                    if min(cam_right, a3) - max(cam_left, a2) > (cam_right - cam_left) * 0.2:
+                        ax0.plot(cxs, cys, '.g')
+                        # print(cam_left, cam_right)
+                        # print(a2, a3)
+                        # plt.waitforbuttonpress()
                         label = 'True'
                         break
 
-                # false if in aov and not fit into any camera box
-                if label == 'None' and a2 > left_bound and a3 < right_bound:
-                    if (a3-a2)/(cam_right - cam_left) < 0.5 or far_to(a2, cam_left) or far_to(a3, cam_right):
-                        label = 'False'
-                        ax0.plot(cxs, cys, 'y.')
+                # false if in AoV and not fit into any camera box
+                if label == 'None':
+                    label = 'False'
+                    ax0.plot(cxs, cys, '.r')
 
+
+                if self.save and label in self.keys:
+                    self.data[label].append(c)
 
 
         keyPressed = plt.waitforbuttonpress(timeout=0.005)
@@ -135,26 +159,8 @@ class Visualizer_Cam_Data(Visualizer_Cam_Base):
 
 
 def close_to(a, b):
-    return abs(a-b) < 0.1
-
+    return abs(a-b) < 0.2
 
 def far_to(a, b):
-    return abs(a-b) > 0.3
+    return abs(a-b) > 0.5
 
-def cluster_DBSCAN(data, min_points=20):
-    # pdb.set_trace()
-    if not data.any() or data.shape[0] < 10:
-        return None
-    model = DBSCAN(eps=0.06)
-    model.fit((data[:, :2]))
-    labels = model.labels_
-    clusters = []
-
-    for _, class_idx in enumerate(np.unique(labels)):
-        if class_idx != -1:
-            class_data = data[labels == class_idx]
-            if class_data.shape[0] < min_points:
-                continue
-            clusters.append(class_data)
-
-    return clusters

@@ -1,3 +1,7 @@
+'''
+input - frames, each frame = image, [outputs of fm]
+output - bounding box, labeled image, [outputs of fm]
+'''
 import cv2
 import numpy as np
 import pickle

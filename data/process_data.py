@@ -1,3 +1,7 @@
+'''
+input - [bounding box, labeled image, [outputs of fm]] (output of preprocess.py)
+output - a dict as {'True':[list of point cloud], ...}
+'''
 import cv2
 import numpy as np
 import pickle
@@ -7,11 +11,10 @@ import random
 import sys
 import datetime
 import os
-from sklearn.cluster import DBSCAN
+from ..util import cluster_DBSCAN
 
 
-
-data_file = 'pp-07091724.pkl'
+data_file = '07221249.pkl'
 AoV = 30/180*np.pi
 cam_w = 640
 cam_h = 480
@@ -30,11 +33,7 @@ def main():
     i = 2000
     while i < len(data):
         print(f'{i}/{len(data)}')
-        cmd = read_frame_with_display(data[i], ax0)
-        if cmd == '+10':
-            i += 10
-        else:
-            i += 1
+        read_frame_with_display(data[i], ax0)
 
 
 def read_frame_with_display(data, ax0):
@@ -159,23 +158,7 @@ def read_data(data_file):
     return data
 
 
-def cluster_DBSCAN(data, min_points=20):
-    # pdb.set_trace()
-    if not data.any() or data.shape[0] < 10:
-        return None
-    model = DBSCAN(eps=0.06)
-    model.fit((data[:, :2]))
-    labels = model.labels_
-    clusters = []
 
-    for _, class_idx in enumerate(np.unique(labels)):
-        if class_idx != -1:
-            class_data = data[labels == class_idx]
-            if class_data.shape[0] < min_points:
-                continue
-            clusters.append(class_data)
-
-    return clusters
 
 
 if __name__ == '__main__':

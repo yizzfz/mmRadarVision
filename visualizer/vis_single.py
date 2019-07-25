@@ -77,6 +77,7 @@ class Visualizer_Single_Height(Visualizer_Base):
             runflag.value = 0
 
 
+# record everything for a period of time
 class Visualizer_Background(Visualizer_Base):
     def run(self, runflag):
         radar_frame = np.ndarray((0, 3))

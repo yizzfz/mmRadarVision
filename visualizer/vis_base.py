@@ -18,10 +18,10 @@ class Visualizer_Base():
         if save:
             timestamp = datetime.datetime.now().strftime('%m%d%H%M')
             self.save = f'./data/{timestamp}.pkl'
+            self.data = []
 
     def run(self, runflag):
         fig = self.create_fig()
-        data_to_save = []
         self.step = 0
         while runflag.value == 1:
             try:
@@ -36,7 +36,7 @@ class Visualizer_Base():
                                 data.append(frame)
                         self.plot(i, fig, frame, runflag)
                 if self.save and self.step >= self.save_start:
-                    data_to_save.append(data)
+                    self.data.append(data)
                 self.step += 1
 
 
@@ -48,14 +48,13 @@ class Visualizer_Base():
 
         if self.save:
             with open(self.save, 'wb') as f:
-                pickle.dump(data_to_save, f)
+                pickle.dump(self.data, f)
 
-    def plot(self, idx, fig, frame):
+    def plot(self, idx, fig, frame, runflag):
         return
 
     def create_fig(self):
         return plt.figure()
-        
 
 class Visualizer_Multi_Base():
     def __init__(self, queues, fm=None, xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2], n_row=1, n_col=2):
@@ -88,7 +87,7 @@ class Visualizer_Multi_Base():
                 runflag.value = 0
                 break
 
-    def plot(self, idx, fig, frame):
+    def plot(self, idx, fig, frame, runflag):
         return
 
     def create_fig(self):
@@ -128,12 +127,15 @@ class Visualizer_Cam_Base():
         self.step = 0
         self.save = None
         self.save_start = save_start
+        
         if save:
             timestamp = datetime.datetime.now().strftime('%m%d%H%M')
             self.save = f'./data/{timestamp}.pkl'
+            self.data = []
+            self.save_frame = True
 
-        self.cam_w = 1920
-        self.cam_h = 1080
+        self.cam_w = 640
+        self.cam_h = 480
 
     def run(self, runflag):
         fig = self.create_fig()
@@ -144,9 +146,9 @@ class Visualizer_Cam_Base():
             runflag.value = 0
             return
         
-        vc.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M','J','P','G'))
-        vc.set(cv2.CAP_PROP_FRAME_HEIGHT, cam_h)
-        vc.set(cv2.CAP_PROP_FRAME_WIDTH, cam_w)
+        vc.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+        vc.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cam_h)
+        vc.set(cv2.CAP_PROP_FRAME_WIDTH, self.cam_w)
         vc.set(cv2.CAP_PROP_FPS, 30)
 
         w = vc.get(cv2.CAP_PROP_FRAME_WIDTH)
@@ -155,7 +157,6 @@ class Visualizer_Cam_Base():
         print('[cam] Height', h, 'Width', w, 'FPS', fps)
         self.cam_w = w
         self.cam_h = h
-        data_to_save = []
         self.step = 0
         while runflag.value == 1:
             try:
@@ -164,7 +165,7 @@ class Visualizer_Cam_Base():
                 res = None
                 if self.step >= self.detector_start:
                     cam_frame, res = self.cam_process(cam_frame)
-                cv2.imshow("cam", cv2.cvtColor(cam_frame, cv2.COLOR_BGR2GRAY))
+                cv2.imshow("cam", cam_frame)
                 key = cv2.waitKey(1)
                 data.append(cv2.cvtColor(cam_frame, cv2.COLOR_BGR2GRAY))
 
@@ -183,8 +184,8 @@ class Visualizer_Cam_Base():
                     runflag.value = 0
                     break
                 self.step += 1
-                if self.save and self.step >= self.save_start:
-                    data_to_save.append(data)
+                if self.save and self.save_frame and self.step >= self.save_start:
+                    self.data.append(data)
 
 
             except Exception as e:
@@ -196,7 +197,8 @@ class Visualizer_Cam_Base():
         
         if self.save:
             with open(self.save, 'wb') as f:
-                pickle.dump(data_to_save, f)
+                pickle.dump(self.data, f)
+                print('data saved to', self.save)
         cv2.destroyWindow("preview")
         vc.release()
 
@@ -206,8 +208,49 @@ class Visualizer_Cam_Base():
         else:
             return self.detector.process(frame)
 
-    def plot(self, idx, fig, frame, cam=None):
+    def plot(self, idx, fig, frame, runflag, detection=None):
         return
 
     def create_fig(self):
+        return plt.figure()
+
+
+class Visualizer_NN_Base():
+    def __init__(self, queues, fm=None, model=None, xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2]):
+        self.queues = queues
+        self.xlim = xlim
+        self.ylim = ylim
+        self.zlim = zlim
+        self.fm = fm
+        self.model = model
+
+    def run(self, runflag):
+        fig = self.create_fig()
+        while runflag.value == 1:
+            try:
+                for i, q in enumerate(self.queues):
+                    if not q.empty():
+                        frame = q.get(block=True, timeout=3)
+                        if self.fm:
+                            for f in self.fm:
+                                frame = f.run(frame)
+                        mat, centroids = self.prepare_data(frame)
+                        if mat is None:
+                            continue
+                        labels = self.model.model_predict(mat)
+                        self.plot(i, fig, frame, centroids, labels, runflag)
+
+            except Exception as e:
+                print('Exception from visualization thread:', e)
+                print(traceback.format_exc())
+                runflag.value = 0
+                break
+
+    def prepare_data(self, *args):
+        pass
+
+    def plot(self, *args):
+        return
+
+    def create_fig(self, *args):
         return plt.figure()
