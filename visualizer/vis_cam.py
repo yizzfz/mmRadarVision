@@ -1,7 +1,7 @@
 from .vis_base import Visualizer_Cam_Base
 import matplotlib.pyplot as plt
 import numpy as np
-from imageai.Detection import ObjectDetection
+# from imageai.Detection import ObjectDetection
 import sys
 sys.path.append("..")
 from util import cluster_DBSCAN
