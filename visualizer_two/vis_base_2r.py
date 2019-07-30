@@ -8,7 +8,7 @@ from .util import *
 import sys
 
 class Visualizer_Base_2R():
-    def __init__(self, queues, fm1=[], fm2=[], xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2], save=False, save_start=1000):
+    def __init__(self, queues, fm1=[], fm2=[], xlim=[-(d_hor+0.2), d_hor+0.2], ylim=[-(d_ver+0.2), d_ver+0.2], zlim=[0, 2], save=False, save_start=1000):
         self.queues = queues
         self.xlim = xlim
         self.ylim = ylim
@@ -57,9 +57,11 @@ class Visualizer_Base_2R():
                 runflag.value = 0
                 break
 
-        # if self.save:
-        #     with open(self.save, 'wb') as f:
-        #         pickle.dump(self.data, f)
+        if self.save:
+            with open(self.save, 'wb') as f:
+                pickle.dump(self.data, f)
+                print('data saved to', self.save)
+
 
     def create_fig(self):
         fig0 = plt.figure(0)
@@ -76,8 +78,8 @@ class Visualizer_Base_2R():
         ax0.plot([0], [0], 'g+')
 
 
-        ax0.set_xlim([-(d_hor+0.2), d_hor+0.2])
-        ax0.set_ylim([-(d_ver+0.2), d_ver+0.2])
+        ax0.set_xlim(self.xlim)
+        ax0.set_ylim(self.ylim)
         ax0.set_xlabel('range (m)')
         ax0.set_ylabel('range (m)')
 
@@ -91,9 +93,9 @@ class Visualizer_Base_2R():
 
         ax1.plot([0, 0], [d_ver, d_ver], [0, radar_height], color='r')
         ax1.plot([d_hor, d_hor], [0, 0], [0, radar_height], color='b')
-        ax1.set_xlim([-(d_hor+0.2), d_hor+0.2])
-        ax1.set_ylim([-(d_ver+0.2), d_ver+0.2])
-        ax1.set_zlim([0, 2])
+        ax1.set_xlim(self.xlim)
+        ax1.set_ylim(self.ylim)
+        ax1.set_zlim(self.zlim)
         ax1.set_xlabel('range (m)')
         ax1.set_ylabel('range (m)')
         ax1.set_zlabel('height (m)')
@@ -102,27 +104,30 @@ class Visualizer_Base_2R():
         self.ax1 = ax1
         self.ls0 = ls0
         self.ls1 = ls1
+        
         plt.ion()
         plt.show()
 
         
 
-    def plot(self, idx, frame, runflag):
+    def plot(self, idx, frame, runflag, plot=True):
         if idx == 0:
             xs1, ys1, zs1 = np.squeeze(np.split(frame.T, 3))
             res = rotate_and_translate(xs1, ys1, zs1, R1, T1)
             xs3, ys3, zs3 = np.squeeze(np.split(res, 3))
             
-            self.ls0.set_xdata(xs3)
-            self.ls0.set_ydata(ys3)
+            if plot:
+                self.ls0.set_xdata(xs3)
+                self.ls0.set_ydata(ys3)
             self.clusters1 = cluster_xyz(xs3, ys3, zs3)
         elif idx == 1:
             xs2, ys2, zs2 = np.squeeze(np.split(frame.T, 3))
             res = rotate_and_translate(xs2, ys2, zs2, R2, T2)
             xs4, ys4, zs4 = np.squeeze(np.split(res, 3))
 
-            self.ls1.set_xdata(xs4)
-            self.ls1.set_ydata(ys4)
+            if plot:
+                self.ls1.set_xdata(xs4)
+                self.ls1.set_ydata(ys4)
             self.clusters2 = cluster_xyz(xs4, ys4, zs4)
         else:
             print('Error: Using more than two queues, but visualizer designed for two')

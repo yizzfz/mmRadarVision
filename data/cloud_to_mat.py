@@ -10,7 +10,7 @@ import sys
 sys.path.append("..")
 from util import frame_to_mat, obj_to_mat, out_dim, step
 
-data_file = '07231305.pkl'
+data_file = '07261815.pkl'
 
 
 def main():

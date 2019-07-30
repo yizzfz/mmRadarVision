@@ -27,11 +27,12 @@ class Visualizer_NN(Visualizer_NN_Base):
 
 
         for centroid, label in zip(centroids, labels):
-            if label == 0:
+            # if label == 0:
                 circle = plt.Circle((centroid[0], centroid[1]), 0.1, color='g', alpha=1)
             # else:
             #     circle = plt.Circle((centroid[0], centroid[1]), 0.1, color='r')
                 ax0.add_artist(circle)
+                ax0.text(centroid[0], centroid[1], str(label))
 
 
         keyPressed = plt.waitforbuttonpress(timeout=0.005)

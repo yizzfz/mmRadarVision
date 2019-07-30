@@ -39,7 +39,6 @@ R2 = R.from_euler('z', -90, degrees=True).as_dcm()
 T1 = [0, d_ver, radar_height]      
 T2 = [d_hor, 0, radar_height]
 
-
 class Frame:
     def __init__(self):
         self.obj_list = []
@@ -62,8 +61,72 @@ class Frame:
         self.obj_list = [obj for obj in (self.obj_list) if obj.live()]
         return
 
-    def get_drawings(self):
-        return [obj.get_drawing() for obj in self.obj_list if obj.confidence > 2]
+    def update_with_filters(self, new_cubes, filters):
+        self.update(new_cubes)
+        for obj in self.obj_list:
+            radar = (0, d_ver)
+            centre = obj.centroid
+            angle = angle_to(centre, radar)
+            
+            base = obj.get_average_cube().base
+            leftmost = 4
+            rightmost = -4
+            for pts in base:
+                angle_c = angle_to(pts, radar)
+                leftmost = min(leftmost, angle_c)
+                rightmost = max(rightmost, angle_c)
+            region = rightmost - leftmost
+            found = False
+            
+            for left, right in filters:
+                if left <= angle <= right and region/(right-left) > 0.3:
+                    found = True
+                    break
+            obj.update_label(found)
+
+
+    def get_drawings(self, ret_label=False):
+        if not ret_label:
+            return [obj.get_drawing() for obj in self.obj_list if obj.confidence > 2]
+
+        res = []
+        for obj in self.obj_list:
+            if obj.confidence <= 2:
+                continue
+            if obj.label >= 5:
+                label = 'True'
+            elif obj.label > 0:
+                label = 'Likely'
+            elif obj.label > -5:
+                label = 'Unlikely'
+            else:
+                label = 'False'
+            res.append((obj.get_drawing(), label, obj.centroid))
+
+        return res
+
+        # live_objs = [obj for obj in self.obj_list if obj.confidence > 2]
+        # res = []
+        # for obj in live_objs:
+        #     centre = obj.centroid
+        #     angle = angle_to(centre, (0, d_ver))
+
+        #     found = False
+        #     for left, right in filters:
+        #         if angle >= left and angle <= right:
+        #             if ret_label:
+        #                 res.append((obj.get_drawing(color='red'), 'True'))
+        #             else:
+        #                 res.append(obj.get_drawing(color='red'))
+        #             found = True
+        #             break
+        #     if not found:
+        #         if ret_label:
+        #             res.append((obj.get_drawing(color='blue'), 'False'))
+        #         else:
+        #             res.append(obj.get_drawing(color='blue'))
+        # return res
+
 
     def debug(self):
         print('There are %d objs' % (len(self.obj_list)))
@@ -83,12 +146,21 @@ class Obj:
         self.bases = [(cube.lenA, cube.lenB)]
         self.base_len = (0, 0)
         self.mode = 'init'
+        self.label = 0
 
     def debug(self):
         print('object has %d candidate cubes' % len(self.cube_list))
         for c in self.cube_list:
             print(c.confidence)
 
+    def update_label(self, found):
+        if found:
+            self.label += 1
+        else:
+            self.label -= 1
+
+        self.label = max(self.label, -5)
+        self.label = min(self.label, 5)
 
     def find_cube(self, cube):
         for c in self.cube_list:
@@ -108,10 +180,11 @@ class Obj:
         self.cube_list.append(cube)
         self.update()
 
-    def get_drawing(self):
+
+    def get_average_cube(self):
         cube_to_display = self.get_drawing_average()
         if self.mode == 'init':
-            return cube_to_display.get_drawing(height=self.height)
+            return cube_to_display
 
         vec1 = cube_to_display.vec1[0:2]
         vec2 = cube_to_display.vec2[0:2]
@@ -135,8 +208,18 @@ class Obj:
         p4 = c-vec1+vec2
 
         height = self.height if (self.height - self.heightL / self.heightL > 0.1) else self.heightL
-        cube = Cube((p1, p2, p3, p4), self.height)
-        return cube.get_drawing()
+        cube = Cube((p1, p2, p3, p4), height)
+        return cube
+        
+
+    def get_drawing(self, color=None):
+        if color is None:
+            color = 'red' if self.label == 5 else 'black' if self.label == -5 else 'blue'
+
+        cube = self.get_average_cube()
+        if self.mode == 'init':
+            return cube.get_drawing(height=self.height, color=color)
+        return cube.get_drawing(color=color)
 
         
     def get_drawing_max(self):
@@ -190,7 +273,6 @@ class Obj:
         self.centroid = x, y
         self.height = h
         self.confidence = sum([c.confidence for c in self.cube_list])
-
 
         if self.mode == 'init':
             self.bases += [(c.lenA, c.lenB) for c in self.cube_list]
@@ -288,13 +370,12 @@ class Cube:
         y = self.vec2[0]**2 + self.vec2[1]**2
         return np.sqrt(x*y)
 
-    
-
-
+  
 class Cluster:
     def __init__(self, data):
         # input (3, n)
         assert(data.shape[0]==3)
+        self.data = data
         self.centroid = np.average(data, axis=1)
         rand = np.random.randn(*data.shape)/1e6
         data += rand
@@ -327,6 +408,9 @@ class Cluster:
 
     def get_centroid(self):
         return self.centroid
+
+    def get_centroid_xy(self):
+        return self.centroid[:2]
 
     def get_bounding_box(self, color='blue'):
         return Polygon(self.corners, alpha=0.5, color=color)
@@ -369,7 +453,7 @@ class Cluster:
         return res
 
     def close_to(self, cluster_B):
-        return self.distance_to(cluster_B) < 0.5
+        return self.distance_to(cluster_B) < 0.2
 
     def max_bound(self, cluster_B):
         (xmin1, xmax1), (ymin1, ymax1), (zmin1, zmax1) = self.get_bound()
@@ -476,7 +560,7 @@ def cluster_xyz(xs, ys, zs):
     frame = np.stack((xs, ys, zs), axis=-1)
     clusters = cluster_DBSCAN(frame)
     res = []
-    if len(clusters) == 0:
+    if clusters is None or len(clusters) == 0:
         return []
     for class_data in clusters:
         assert(class_data.shape[1]==3)
@@ -485,3 +569,15 @@ def cluster_xyz(xs, ys, zs):
         cc = Cluster(class_data.T)
         res.append(cc)
     return res
+
+
+def angle_to(point1, point2):
+    x1, y1 = point1
+    x2, y2 = point2
+    return np.arctan((x2-x1)/(y2-y1))
+
+
+def distance_to(point1, point2):
+    x1, y1 = point1
+    x2, y2 = point2
+    return np.sqrt((x2-x1)**2+(y2-y1)**2)

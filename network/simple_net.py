@@ -14,7 +14,7 @@ num_classes = 2
 eps = 2000
 
 input_dim = [60, 30, 60]
-data_file = '../data/pp-07231305.pkl'
+data_file = '../data/pp-07261815.pkl'
 
 
 class Simple_Net():
@@ -79,8 +79,9 @@ class Simple_Net():
 
     def model_predict(self, data):
         label = self.model.predict(data)
-        label = np.argmax(label, axis=1)
-        return label
+        # label = np.argmax(label, axis=1)
+        # label = label[:, 1] > 0.8
+        return label[:, 1]
 
 
 def read_file(data_file):
