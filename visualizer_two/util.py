@@ -30,6 +30,9 @@ max_confidence = 20
 cth = 2
 
 radar_height = 1.5
+AoV = 40/180*np.pi
+AoV_e = 45/180*np.pi
+AoV_e1 = 60/180*np.pi
 
 
 
@@ -555,7 +558,7 @@ def rotate_and_translate(xs, ys, zs, r, t):
     return data.T
 
 def cluster_xyz(xs, ys, zs):
-    if len(xs) < 2:
+    if not isinstance(xs, np.ndarray) or len(xs) < 2:
         return []
     frame = np.stack((xs, ys, zs), axis=-1)
     clusters = cluster_DBSCAN(frame)
@@ -581,3 +584,6 @@ def distance_to(point1, point2):
     x1, y1 = point1
     x2, y2 = point2
     return np.sqrt((x2-x1)**2+(y2-y1)**2)
+
+def in_region(cen):
+    return (-AoV_e < angle_to(cen, (0, d_ver)) < AoV_e) and cen[1] > -1.2 and -1 < cen[0] < 1

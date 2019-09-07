@@ -69,7 +69,7 @@ class Visualizer_Cam_2R(Visualizer_Base_2R):
                         frame = q.get(block=True, timeout=3)
                         for f in self.fm[i]:
                             frame = f.run(frame)
-                        self.plot(i, frame, runflag, plot=False)
+                        self.plot(i, frame, runflag, plot=True) # plot all points?
                 if update:
                     self.plot_inter(runflag, detection=res)
                 self.step += 1

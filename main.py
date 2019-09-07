@@ -4,7 +4,7 @@ from radar_handler import Radar
 from visualizer import Visualizer_3D, Visualizer_Single, Visualizer_Multi
 from visualizer import Visualizer_Cam_Single, Visualizer_Cam_Data, Visualizer_Background
 from visualizer import Visualizer_NN
-from visualizer_two import Visualizer_Base_2R, Visualizer_Cam_2R
+from visualizer_two import Visualizer_Base_2R, Visualizer_Cam_2R, Visualizer_Cam_2R_eval
 from frame_manager import Frame_Manager_Base, Frame_Manager_Cluster, Frame_Manager_Foreground
 from detector import Detector_Human
 from config import radar_ports
@@ -12,7 +12,7 @@ from network import Simple_Net
 
 
 
-radar_to_use = [0, 1]
+radar_to_use = [1, 0]
 
 
 
@@ -36,17 +36,18 @@ def vis_thread(num_radar, queues, runflag):
         # vis = Visualizer_Background(queues, [], save=True)
         # vis = Visualizer_Single(queues, [fm0])
         # vis = Visualizer_Base_2R(queues, [])
-        vis.run(runflag)
+        vis.run(runflag) 
     if num_radar == 2:
-        fm01 = Frame_Manager_Base(max_length=6, ylim=[0, 3], zlim=[-1, 1])
-        fm02 = Frame_Manager_Base(max_length=6, ylim=[0, 3], zlim=[-1, 1])
+        fm01 = Frame_Manager_Base(max_length=5, ylim=[0, 3], zlim=[-1, 1])
+        fm02 = Frame_Manager_Base(max_length=5, ylim=[0, 3], zlim=[-1, 1])
 
-        fm11 = Frame_Manager_Cluster(max_length=1, min_points=5)
-        fm12 = Frame_Manager_Cluster(max_length=1, min_points=5)
+        fm11 = Frame_Manager_Cluster(max_length=1, min_points=8)
+        fm12 = Frame_Manager_Cluster(max_length=1, min_points=8)
 
 
         # vis = Visualizer_Base_2R(queues, [fm01, fm11], [fm02, fm12])
-        vis = Visualizer_Cam_2R(queues, [fm01, fm11], [fm02, fm12], detector=Detector_Human(), save=True)
+        # vis = Visualizer_Cam_2R(queues, [fm01, fm11], [fm02, fm12], detector=Detector_Human(), save=False)
+        vis = Visualizer_Cam_2R_eval(queues, [fm01, fm11], [fm02, fm12], detector=Detector_Human(), save=True)
         vis.run(runflag)
  
 

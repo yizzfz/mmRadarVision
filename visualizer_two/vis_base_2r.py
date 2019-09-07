@@ -31,6 +31,8 @@ class Visualizer_Base_2R():
 
         self.clusters1 = []
         self.clusters2 = []
+        self.ps1 = None
+        self.ps2 = None
         self.ff = Frame()
 
     def run(self, runflag):
@@ -120,6 +122,7 @@ class Visualizer_Base_2R():
                 self.ls0.set_xdata(xs3)
                 self.ls0.set_ydata(ys3)
             self.clusters1 = cluster_xyz(xs3, ys3, zs3)
+            self.ps1 = xs3, ys3, zs3
         elif idx == 1:
             xs2, ys2, zs2 = np.squeeze(np.split(frame.T, 3))
             res = rotate_and_translate(xs2, ys2, zs2, R2, T2)
@@ -129,13 +132,28 @@ class Visualizer_Base_2R():
                 self.ls1.set_xdata(xs4)
                 self.ls1.set_ydata(ys4)
             self.clusters2 = cluster_xyz(xs4, ys4, zs4)
+            self.ps2 = xs4, ys4, zs4
         else:
             print('Error: Using more than two queues, but visualizer designed for two')
             runflag.value = 0
 
 
 
-    def plot_inter(self, runflag):
+    def plot_inter(self, runflag, show3dpoints=False):
+        if show3dpoints:
+            self.ax1.cla()
+            self.ax1.scatter([0], [d_ver], [radar_height], color='r', s=30)
+            self.ax1.scatter([d_hor], [0], [radar_height], color='b', s=30)
+
+            self.ax1.plot([0, 0], [d_ver, d_ver], [0, radar_height], color='r')
+            self.ax1.plot([d_hor, d_hor], [0, 0], [0, radar_height], color='b')
+            self.ax1.set_xlim(self.xlim)
+            self.ax1.set_ylim(self.ylim)
+            self.ax1.set_zlim(self.zlim)
+            self.ax1.set_xlabel('range (m)')
+            self.ax1.set_ylabel('range (m)')
+            self.ax1.set_zlabel('height (m)')
+
         for e in self.ellipses_all:
             e.remove()
 
@@ -172,6 +190,13 @@ class Visualizer_Base_2R():
             if art is not None:
                 self.ellipses_all.append(art)
                 self.ax0.add_artist(art)
+
+        if show3dpoints and self.ps1 is not None and self.ps2 is not None:
+            xs, ys, zs = self.ps1
+            self.ax1.scatter(xs, ys, zs, color='red')
+            xs, ys, zs = self.ps2
+            self.ax1.scatter(xs, ys, zs, color='blue')
+            
 
 
         keyPressed = plt.waitforbuttonpress(timeout=0.005)
