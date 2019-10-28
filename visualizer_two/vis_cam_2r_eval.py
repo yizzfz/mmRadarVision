@@ -9,6 +9,7 @@ import sys
 # from .vis_base_2r import Visualizer_Base_2R
 from .vis_cam_2r import Visualizer_Cam_2R
 from collections import Counter
+import time
 
 
 class Visualizer_Cam_2R_eval(Visualizer_Cam_2R):
@@ -16,7 +17,8 @@ class Visualizer_Cam_2R_eval(Visualizer_Cam_2R):
         super().__init__(queues, fm1, fm2, detector, xlim, ylim, zlim, save, save_start)
         self.data = []
         self.n_cluster_before_fm = 0
-
+        self.start_time = 0
+        self.end_time = 0
 
     def run(self, runflag):
         self.create_fig()
@@ -40,6 +42,8 @@ class Visualizer_Cam_2R_eval(Visualizer_Cam_2R):
         self.cam_h = h
 
         self.step = 0
+        warmup = 50
+
         while runflag.value == 1:
             try:
                 rval, cam_frame = vc.read()
@@ -65,6 +69,10 @@ class Visualizer_Cam_2R_eval(Visualizer_Cam_2R):
                 if update:
                     self.plot_inter(runflag, detection=detection)
                 self.step += 1
+                if self.step > warmup and self.start_time == 0:
+                    self.start_time = time.time()
+
+        
 
 
             except Exception as e:
@@ -72,6 +80,12 @@ class Visualizer_Cam_2R_eval(Visualizer_Cam_2R):
                 print(traceback.format_exc())
                 runflag.value = 0
                 break
+
+        self.end_time = time.time()
+        e_time = self.end_time - self.start_time
+        self.step -= warmup
+        fps = self.step/e_time if e_time > 0 else 0
+        print(f'steps {self.step}, time {e_time}, fps {fps:.2f}')
 
         if self.save:
             with open(self.save, 'wb') as f:

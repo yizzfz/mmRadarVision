@@ -8,7 +8,7 @@ from .util import *
 import sys
 
 class Visualizer_Base_2R():
-    def __init__(self, queues, fm1=[], fm2=[], xlim=[-(d_hor+0.2), d_hor+0.2], ylim=[-(d_ver+0.2), d_ver+0.2], zlim=[0, 2], save=False, save_start=1000):
+    def __init__(self, queues, fm1=[], fm2=[], xlim=[-(d_hor+0.2), d_hor+0.2], ylim=[-(d_ver+0.2), d_ver+0.2], zlim=[0, 2], save=False, save_start=1000, save_img=None):
         self.queues = queues
         self.xlim = xlim
         self.ylim = ylim
@@ -34,6 +34,7 @@ class Visualizer_Base_2R():
         self.ps1 = None
         self.ps2 = None
         self.ff = Frame()
+        self.save_img = save_img
 
     def run(self, runflag):
         self.create_fig()
@@ -198,6 +199,9 @@ class Visualizer_Base_2R():
             self.ax1.scatter(xs, ys, zs, color='blue')
             
 
+        if self.save_img:
+            plt.savefig(f"{self.save_img}/{self.step}.png")
+            print(datetime.datetime.now().strftime('%M%S'))
 
         keyPressed = plt.waitforbuttonpress(timeout=0.005)
         if keyPressed:
