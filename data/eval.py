@@ -16,31 +16,32 @@ data_folder = 'two-radar'
 
 def main():
     pkl_list = get_pkl_list(data_folder)
-    for pkl in pkl_list:
-        data = read_data(pkl)
-        data = np.array(data)
+    data_all = [np.array(read_data(pkl))[:, 0:3] for pkl in pkl_list]
+    for data in data_all:
+    #     # data[:, 0] = medfilt(data[:, 0], 5)
 
-        # data[:, 0] = medfilt(data[:, 0], 5)
+    #     # plt.plot(data[:, 0])
+    #     # plt.plot(data[:, 1])
+    #     # plt.plot(data[:, 2])
+    #     # plt.show()
+        process_data(data)
+    process_data(np.concatenate(data_all))
 
-        # plt.plot(data[:, 0])
-        # plt.plot(data[:, 1])
-        # plt.plot(data[:, 2])
-        # plt.show()
+def process_data(data):
+    data[:, 0] = medfilt(data[:, 0], 5)
+    tp1 = np.minimum(data[:, 0], data[:, 1])
+    tp2 = np.minimum(data[:, 0], data[:, 2])
 
-        tp1 = np.minimum(data[:, 0], data[:, 1])
-        tp2 = np.minimum(data[:, 0], data[:, 2])
+    # sensitivity / hit rate = true positive / real postive
+    s1 = np.average(np.nan_to_num(tp1 / data[:, 0], nan=1))
+    s2 = np.average(np.nan_to_num(tp2 / data[:, 0], nan=1))
 
-        # sensitivity / hit rate = true positive / real postive
-        s1 = np.average(np.nan_to_num(tp1 / data[:, 0], nan=1))
-        s2 = np.average(np.nan_to_num(tp2 / data[:, 0], nan=1))
+    # precision = true postive / predicted postive
+    p1 = np.average(np.nan_to_num(tp1 / data[:, 1], nan=1))
+    p2 = np.average(np.nan_to_num(tp2 / data[:, 2], nan=1))
 
-        # precision = true postive / predicted postive
-        p1 = np.average(np.nan_to_num(tp1 / data[:, 1], nan=1))
-        p2 = np.average(np.nan_to_num(tp2 / data[:, 2], nan=1))
-        
-        print(f'one radar hit rate {s2:.4f}, precision {p2:.4f}, two radar hit rate {s1:.4f}, precision {p1:.4f}')
-        import pdb; pdb.set_trace()
 
+    print(f'[{data.shape}] one radar hit rate {s2:.4f}, precision {p2:.4f}, two radar hit rate {s1:.4f}, precision {p1:.4f}')
 
 def get_pkl_list(folder):
     res = []
