@@ -1,0 +1,207 @@
+
+Fri Mar 04 21:21:44 2022
+Read FPGA version Command (req)
+
+Fri Mar 04 21:23:07 2022
+
+Unable to read FPGA Version. [error -5]
+
+
+Fri Mar 04 21:23:12 2022
+Invalid Command (fpga.\config.json). error[-4048]
+
+Fri Mar 04 21:23:20 2022
+Invalid Command (.\config.json). error[-4048]
+
+Fri Mar 04 21:23:24 2022
+Invalid Command (.\config.json). error[-4048]
+
+Fri Mar 04 21:23:32 2022
+FPGA Configuration Command (req)
+
+Fri Mar 04 21:23:32 2022
+FPGA Configuration command : Success
+
+Fri Mar 04 21:23:32 2022
+Return status : 0
+
+Fri Mar 04 21:24:00 2022
+Reset FPGA Command (req)
+
+Fri Mar 04 21:24:00 2022
+Reset FPGA command : Success
+
+Fri Mar 04 21:24:00 2022
+Return status : 0
+
+Fri Mar 04 21:24:12 2022
+Read DLL Verison Command (req)
+
+Fri Mar 04 21:24:12 2022
+DLL Version : 1.0
+
+Fri Mar 04 21:24:19 2022
+Read CLI Verison Command (req)
+
+Fri Mar 04 21:24:19 2022
+Control CLI Version : 1.0
+
+Fri Mar 04 21:24:30 2022
+Read Record Process Status (req)
+
+Fri Mar 04 21:24:30 2022
+No record process is running. [error -4002]
+
+Fri Mar 04 21:24:40 2022
+Query system status Command (req)
+
+Fri Mar 04 21:24:40 2022
+System is connected.
+
+Fri Mar 04 21:24:40 2022
+Return status : 0
+
+Fri Mar 04 21:27:51 2022
+Start Record Command (req)
+
+Fri Mar 04 21:27:51 2022
+Start Record Command (req)
+
+Fri Mar 04 21:27:51 2022
+Start Record command : Success
+
+Fri Mar 04 21:28:01 2022
+Start Record : 
+Timeout Error! System disconnected
+
+Fri Mar 04 21:28:01 2022
+Return status : -5
+
+Fri Mar 04 21:28:33 2022
+Query system status Command (req)
+
+Fri Mar 04 21:28:33 2022
+System is connected.
+
+Fri Mar 04 21:28:33 2022
+Return status : 0
+
+Fri Mar 04 21:28:39 2022
+Read Record Process Status (req)
+
+Fri Mar 04 21:28:39 2022
+No record process is running. [error -4002]
+
+Fri Mar 04 21:28:51 2022
+stop_record
+
+Fri Mar 04 21:28:51 2022
+No record process is running.
+
+Fri Mar 04 21:29:19 2022
+Reset FPGA Command (req)
+
+Fri Mar 04 21:29:19 2022
+Reset FPGA command : Success
+
+Fri Mar 04 21:29:19 2022
+Return status : 0
+
+Fri Mar 04 21:29:25 2022
+Start Record Command (req)
+
+Fri Mar 04 21:29:25 2022
+Start Record Command (req)
+
+Fri Mar 04 21:29:25 2022
+Start Record command : Success
+
+Fri Mar 04 21:29:25 2022
+Return status : 0
+
+Fri Mar 04 21:29:25 2022
+Start Record command : Success
+
+Fri Mar 04 21:29:35 2022
+Stop Record Command (req)
+
+Fri Mar 04 21:29:35 2022
+Record stop is done successfully
+
+Fri Mar 04 21:29:36 2022
+Stop Record command : Success
+
+Fri Mar 04 21:31:46 2022
+Start Record Command (req)
+
+Fri Mar 04 21:31:46 2022
+Start Record Command (req)
+
+Fri Mar 04 21:31:46 2022
+Start Record command : Success
+
+Fri Mar 04 21:31:46 2022
+Return status : 0
+
+Fri Mar 04 21:31:47 2022
+Start Record command : Success
+
+Fri Mar 04 21:32:15 2022
+No LVDS data
+
+Fri Mar 04 21:32:15 2022
+No Header
+
+Fri Mar 04 21:32:15 2022
+Record stop is done successfully
+
+Fri Mar 04 21:32:57 2022
+Query system status Command (req)
+
+Fri Mar 04 21:32:57 2022
+System is connected.
+
+Fri Mar 04 21:32:57 2022
+Return status : 0
+
+Fri Mar 04 21:33:02 2022
+Read Record Process Status (req)
+
+Fri Mar 04 21:33:02 2022
+No record process is running. [error -4002]
+
+Fri Mar 04 21:33:07 2022
+Start Record Command (req)
+
+Fri Mar 04 21:33:07 2022
+Start Record Command (req)
+
+Fri Mar 04 21:33:07 2022
+Start Record command : Success
+
+Fri Mar 04 21:33:07 2022
+Return status : 0
+
+Fri Mar 04 21:33:08 2022
+Start Record command : Success
+
+Fri Mar 04 21:33:13 2022
+query_sys_status
+
+Fri Mar 04 21:33:13 2022
+Stop the already running process.
+
+Fri Mar 04 21:33:28 2022
+Read Record Process Status (req)
+
+Fri Mar 04 21:33:28 2022
+Record is in progress. [status -4029]
+
+Fri Mar 04 21:33:34 2022
+Stop Record Command (req)
+
+Fri Mar 04 21:33:34 2022
+Record stop is done successfully
+
+Fri Mar 04 21:33:34 2022
+Stop Record command : Success

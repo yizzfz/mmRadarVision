@@ -1,5 +1,7 @@
+backup
+data
 *.pkl
-detector/model/*.h5
+*.h5
 .vscode
 config.py
 network/ckpts

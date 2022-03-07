@@ -1,4 +1,4 @@
-from .vis_base import Visualizer_3D_Base
+from .vis_base import Visualizer_Base
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
@@ -6,7 +6,8 @@ import numpy as np
 from matplotlib import cm
 
 
-class Visualizer_3D(Visualizer_3D_Base):
+class Visualizer_Single_3D(Visualizer_Base):
+    """Plot x-y points and x-y-z (3D) points."""
     def create_fig(self):
         plt.ion()
         fig0 = plt.figure()
@@ -21,16 +22,18 @@ class Visualizer_3D(Visualizer_3D_Base):
         ax0.set_ylabel('y (m)')
 
         plt.show()
-        return ls0, ax1
+        self.fig0 = ls0
+        self.fig1 = ax1
 
-    def plot(self, idx, fig, frame, runflag):
+    def plot_combined(self, frame, runflag):
         frame = frame[frame[:, 0].argsort()]
         xs, ys, zs = np.split(frame.T, 3)
 
-        ls0, ax1 = fig
+        ls0 = self.fig0
         ls0.set_xdata(xs)
         ls0.set_ydata(ys)
 
+        ax1 = self.fig1
         ax1.cla()
         ax1.set_xlim(self.xlim)
         ax1.set_ylim(self.ylim)

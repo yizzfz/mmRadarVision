@@ -10,8 +10,12 @@ import matplotlib.pyplot as plt
 from scipy.signal import medfilt
 import os
 
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import classification_report
 
-data_folder = 'two-radar'
+
+data_folder = 'two-radar-tmp1'
 
 
 def main():
@@ -25,7 +29,26 @@ def main():
     #     # plt.plot(data[:, 2])
     #     # plt.show()
         process_data(data)
+        # cm(data)
     process_data(np.concatenate(data_all))
+    cm(np.concatenate(data_all))
+
+def cm(data):
+    data[:, 0] = medfilt(data[:, 0], 3)
+    data[:, 1] = medfilt(data[:, 1], 3)
+    # data[data>3] = 3
+
+    print(confusion_matrix(data[:, 0], data[:, 1]))
+    print(accuracy_score(data[:, 0], data[:, 1]))
+    print(classification_report(data[:, 0], data[:, 1]))
+
+    for i in range(0, 5):
+        idx = (data[:, 0] == i)
+        prediction = data[idx, 1]
+        # prediction = np.random.choice(prediction, 1000)
+        for j in range(0, 5):
+            print(np.sum(prediction==j), end=' ')
+        print()
 
 def process_data(data):
     data[:, 0] = medfilt(data[:, 0], 5)

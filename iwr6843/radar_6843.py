@@ -27,7 +27,8 @@ fft_distance = fft_freq_d*3e8/(2*100e12)
 
 def read_cfg():
     cfg = []
-    with open('cfg/profileA.cfg') as f:
+    
+    with open('cfg/6843.cfg') as f:
         lines = f.read().split('\n')
     for line in lines:
         if not line.startswith('%'):
@@ -37,8 +38,8 @@ def read_cfg():
 
 def send_cfg(cfg, frame_queue, message_queue, runflag):
     if os.name == 'nt':
-        cfg_port_name = 'COM19'
-        data_port_name = 'COM18'
+        cfg_port_name = 'COM10'
+        data_port_name = 'COM9'
     else:
         cfg_port_name = '/dev/ttyACM0'
         data_port_name = '/dev/ttyACM1'

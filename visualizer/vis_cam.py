@@ -1,4 +1,4 @@
-from .vis_base import Visualizer_Cam_Base
+from .vis_base import Visualizer_Base
 import matplotlib.pyplot as plt
 import numpy as np
 # from imageai.Detection import ObjectDetection
@@ -6,21 +6,21 @@ import sys
 sys.path.append("..")
 from util import cluster_DBSCAN
 
-
 AoV = 40/180*np.pi
 
-
-class Visualizer_Cam_Single(Visualizer_Cam_Base):
+class Visualizer_Cam(Visualizer_Base):
+    """Use a camera detector to filter radar data"""
     def create_fig(self):
         plt.ion()
         fig = plt.figure()
         ax0 = fig.add_subplot(111)
         plt.show()
         self.colors = [np.random.rand(3, ) for _ in range(20)]
-        return ax0
+        self.ax0 = ax0
 
-    def plot(self, idx, fig, frame, runflag, detection=None):
-        ax0 = fig
+    def plot_combined(self, frame, runflag):
+        _, detection = self.cam.get_detection()
+        ax0 = self.ax0
         xs, ys, zs = np.split(frame.T, 3)
         ax0.cla()
         ax0.plot(xs, ys, 'b.')
@@ -53,26 +53,17 @@ class Visualizer_Cam_Single(Visualizer_Cam_Base):
     #     return frame, [(144, 288, 310, 457)]
 
 
-class Visualizer_Cam_Data(Visualizer_Cam_Base):
+class Visualizer_Cam_Data_Generator(Visualizer_Cam):
+    """Generate labelled data based a camera dedector"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.keys = ['True', 'False']
         self.data = {k: [] for k in self.keys}
-        self.save_frame = False
 
-    def create_fig(self):
-        plt.ion()
-        fig = plt.figure()
-        ax0 = fig.add_subplot(111)
-        plt.show()
-        self.colors = [np.random.rand(3, ) for _ in range(20)]
-        return ax0
-
-    def plot(self, idx, fig, frame, runflag, detection=None):
-        ax0 = fig
-
+    def plot_combined(self, frame, runflag):
+        _, detection = self.cam.get_detection()
         xs, ys, zs = np.split(frame.T, 3)
-
+        ax0 = self.ax0
         ax0.cla()
         # ax0.plot(xs, ys, '.k')
         ax0.set_xlim(self.xlim)

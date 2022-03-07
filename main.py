@@ -1,85 +1,71 @@
 import multiprocessing
-import numpy as np
 from radar_handler import Radar
-from visualizer import Visualizer_3D, Visualizer_Single, Visualizer_Multi
-from visualizer import Visualizer_Cam_Single, Visualizer_Cam_Data, Visualizer_Background
-from visualizer import Visualizer_NN
-from visualizer_two import Visualizer_Base_2R, Visualizer_Cam_2R, Visualizer_Cam_2R_eval
+from visualizer import Visualizer_Base, Visualizer_AE, Visualizer_TwoR_Tracker, Visualizer_TwoR_Vertical
+from visualizer import Visualizer_Single_3D, Visualizer_Cam, Visualizer_NN, Visualizer_Range_Profile, Visualizer_Single_FM_Stages, Visualizer_TwoR
 from frame_manager import Frame_Manager_Base, Frame_Manager_Cluster, Frame_Manager_Foreground
-from detector import Detector_Human
-from config import radar_ports
-# from network import Simple_Net
+from config import *
+from logger import Logger
+from camera import Camera_Base
+from heart_sensor import H10
+import matplotlib
+import numpy as np
+matplotlib.use('TkAgg')
+np.set_printoptions(precision=4, suppress=True)
 
 
 
-<<<<<<< HEAD
-radar_to_use = [1, 0]
-=======
-radar_to_use = [1]
->>>>>>> 79494cf15df883b465d2ed954d6d31b910eed918
+radar_to_use = [0, 3]
+camera = 0
+heart_sensor = 'c1:02:a3:7c:57:42'
+heart_sensor = None
 
+def vis_thread(num_radar, queues, runflag, cam=None, heart_sensor=None):
+    if cam is not None:
+        cam = Camera_Base(cam)
+    if heart_sensor is not None:
+        heart_sensor = H10(heart_sensor, task='hr', data_only=True)
+    logger = Logger('tmp', path='d:/mmwave-log')
 
-
-def vis_thread(num_radar, queues, runflag):
     if num_radar == 1:
-        train_frame = 1000
-        fm0 = Frame_Manager_Base(max_length=6, ylim=[0, 3], zlim=[-1, 1])
-        fm1 = Frame_Manager_Foreground(max_length=1, train_frame=train_frame)
+        fm0 = Frame_Manager_Base(max_length=5, xlim=[-1, 1], ylim=[0.2, 3], zlim=[-1, 1])
+        fm1 = Frame_Manager_Foreground(max_length=1, train_frame=1000)
         fm2 = Frame_Manager_Cluster(max_length=1, min_points=5)
-
-        nn = Simple_Net()
-        nn.load_checkpoint('07291026')
-
-        vis = Visualizer_NN(queues, [fm0, fm2], model=nn)
-        # vis = Visualizer_Multi(queues, [fm1, fm2], n_row=1, n_col=2)
-        # vis = Visualizer_3D(queues, [fm0, fm2])
-        # detector = Detector_Human()
-        # vis = Visualizer_Cam_Data(
-        #     queues, [fm0], detector=Detector_Human(min_prob=90), detector_start=0, save=True)
-        # vis = Visualizer_Multi(queues, [fm0, fm1, fm2], n_row=1, n_col=3)
-        # vis = Visualizer_Background(queues, [], save=True)
-        vis = Visualizer_Single(queues, [fm0])
-        # vis = Visualizer_Base_2R(queues, [])
-        vis.run(runflag) 
-    if num_radar == 2:
-        fm01 = Frame_Manager_Base(max_length=5, ylim=[0, 3], zlim=[-1, 1])
-        fm02 = Frame_Manager_Base(max_length=5, ylim=[0, 3], zlim=[-1, 1])
-
+        vis = Visualizer_AE(queues, [[fm0]], logger=logger, xlim=[-1, 1], ylim=[0.2, 3], zlim=[0, 2], height=[1.2], cam=cam, heart_sensor=heart_sensor)
+        vis.run(runflag)
+    elif num_radar == 2:
+        fm01 = Frame_Manager_Base(max_length=12, xlim=[-0.75, 0.75], ylim=[0.2, 5], zlim=[-1, 1])
+        fm02 = Frame_Manager_Base(max_length=12, xlim=[-0.75, 0.75], ylim=[0.2, 5], zlim=[-1, 1])
         fm11 = Frame_Manager_Cluster(max_length=1, min_points=8)
         fm12 = Frame_Manager_Cluster(max_length=1, min_points=8)
-
-
-        # vis = Visualizer_Base_2R(queues, [fm01, fm11], [fm02, fm12])
-        # vis = Visualizer_Cam_2R(queues, [fm01, fm11], [fm02, fm12], detector=Detector_Human(), save=False)
-        vis = Visualizer_Cam_2R_eval(queues, [fm01, fm11], [fm02, fm12], detector=Detector_Human(), save=True)
+        vis = Visualizer_TwoR(queues, [[fm01, fm11], [fm02, fm12]], xlim=[-1.5, 1.5], ylim=[0, 1.5], cam=cam, logger=logger, heart_sensor=heart_sensor)
         vis.run(runflag)
  
 
 def radar_thread(queue, runflag, radar):
     name, cfg_port, data_port, cfg_file = radar
-    radar = Radar(name, cfg_port, data_port)
-    radar.start(cfg_file, queue, runflag)
-    
+    # e.g. radar = ('1443A', 'COM6', 'COM7', './iwr1443/cfg/zoneA.cfg')
+    radar = Radar(name, cfg_port, data_port, runflag)
+    success = radar.connect(cfg_file)
+    if not success:
+        raise ValueError(f'Radar {name} Connection Failed')
+    radar.run(queue)
 
 def main():
-    radars = [radar_ports[i] for i in radar_to_use]
+    radars = [RADAR_CFG[i] for i in radar_to_use]
     runflag = multiprocessing.Value('i', 1)
     num_radar = len(radar_to_use)
     queues = []
+    threads = []
 
     for _ in range(num_radar):
         q = multiprocessing.Queue()
         queues.append(q)
 
-
-    t0 = multiprocessing.Process(target=vis_thread, args=(
-        num_radar, queues, runflag, ))
-    threads = [t0]
-
+    t0 = multiprocessing.Process(target=vis_thread, args=(num_radar, queues, runflag, camera, heart_sensor))
+    threads.append(t0)
 
     for i in range(num_radar):
-        t = multiprocessing.Process(target=radar_thread, args=(
-            queues[i], runflag, radars[i]))
+        t = multiprocessing.Process(target=radar_thread, args=(queues[i], runflag, radars[i]))
         threads.append(t)
 
     for t in threads:

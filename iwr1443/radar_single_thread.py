@@ -16,7 +16,7 @@ header_size = 8 + 4 * 7
 
 def read_cfg():
     cfg = []
-    with open('profile.cfg') as f:
+    with open('cfg/zoneA.cfg') as f:
         lines = f.read().split('\n')
     for line in lines:
         if not line.startswith('%'):
@@ -26,8 +26,8 @@ def read_cfg():
 
 def send_cfg(cfg):
     try:
-        cfg_port = serial.Serial('/dev/ttyACM0', 115200)
-        data_port = serial.Serial('/dev/ttyACM1', 921600, timeout=0.01)
+        cfg_port = serial.Serial('COM6', 115200)
+        data_port = serial.Serial('COM7', 921600, timeout=0.01)
     except serial.serialutil.SerialException:
         print('Failed opening serial port, check connection')
         return
@@ -175,6 +175,7 @@ def parseDetectedObjects(data, tlvLength, ignore=[], print_flag=1):
 
 
 def parseRangeProfile(data, tlvLength):
+    # data = struct.unpack('256H', data[:256])
     for i in range(256):
         rangeProfile = struct.unpack('H', data[2*i:2*i+2])
         print("\tRangeProf[%d]:\t%07.3f "%(i, rangeProfile[0] * 1.0 * 6 / 8  / (1 << 8)))

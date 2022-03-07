@@ -1,10 +1,10 @@
 from sklearn.cluster import DBSCAN
 import numpy as np
+from config import *
 
 out_dim = [60, 30, 60]
 step = 0.01
-d_hor = 1.2
-d_ver = 1.2
+
 
 # input (n, 3), output [(n,3), ...]
 def cluster_DBSCAN(data, min_points=5, eps=0.1, ret_centroids=False):
@@ -22,7 +22,7 @@ def cluster_DBSCAN(data, min_points=5, eps=0.1, ret_centroids=False):
             class_data = data[labels == class_idx]
             if class_data.shape[0] < min_points:
                 continue
-            
+
             clusters.append((class_data))
             centroids.append(np.average(class_data, axis=0))
     if ret_centroids:

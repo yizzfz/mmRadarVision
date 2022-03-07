@@ -1,3 +1,5 @@
+from config import *
+from collections import deque
 import cv2
 import time
 import struct
@@ -19,11 +21,10 @@ from sklearn.cluster import DBSCAN
 from scipy import stats
 from shapely.geometry.point import Point
 from shapely import affinity
-from MinimumBoundingBox import MinimumBoundingBox
+from .MinimumBoundingBox import MinimumBoundingBox
 from scipy.spatial.transform import Rotation as R
-import sys
-sys.path.append("..")
-from util import cluster_DBSCAN, d_hor, d_ver
+from util import cluster_DBSCAN
+
 
 nstd = 2
 max_confidence = 20
@@ -34,10 +35,8 @@ AoV = 40/180*np.pi
 AoV_e = 45/180*np.pi
 AoV_e1 = 60/180*np.pi
 
-
-
-R1 = R.from_euler('z', 180, degrees=True).as_dcm()
-R2 = R.from_euler('z', -90, degrees=True).as_dcm()
+R1 = R.from_euler('z', 180, degrees=True).as_matrix()
+R2 = R.from_euler('z', -90, degrees=True).as_matrix()
 
 T1 = [0, d_ver, radar_height]      
 T2 = [d_hor, 0, radar_height]
@@ -87,7 +86,9 @@ class Frame:
                     break
             obj.update_label(found)
 
-
+    def get_objs(self):
+        return [obj for obj in self.obj_list if obj.confidence > 2]
+    
     def get_drawings(self, ret_label=False):
         if not ret_label:
             return [obj.get_drawing() for obj in self.obj_list if obj.confidence > 2]
@@ -150,6 +151,7 @@ class Obj:
         self.base_len = (0, 0)
         self.mode = 'init'
         self.label = 0
+        self.history = deque([], 50)
 
     def debug(self):
         print('object has %d candidate cubes' % len(self.cube_list))
@@ -213,6 +215,11 @@ class Obj:
         height = self.height if (self.height - self.heightL / self.heightL > 0.1) else self.heightL
         cube = Cube((p1, p2, p3, p4), height)
         return cube
+
+
+    def get_centroid_xy(self):
+        cube = self.get_average_cube()
+        return cube.get_centroid_xy()
         
 
     def get_drawing(self, color=None):
@@ -286,6 +293,10 @@ class Obj:
 
         if self.mode == 'run':
             self.base_len = stats.trim_mean(self.bases, 0.1)
+        self.history.append(self.centroid)
+
+    def get_history(self):
+        return self.history
 
 
 

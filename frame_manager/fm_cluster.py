@@ -13,16 +13,13 @@ class Frame_Manager_Cluster(Frame_Manager_Base):
 
         out = np.concatenate(self.data)
         out = cluster_DBSCAN(out, self.min_points)
-        if out is None:
-            return np.asarray([[0, 0, 0]])
         return out
-
 
 
 def cluster_DBSCAN(data, min_points):
     clusters = np.ndarray((0, 3))
     if not data.any() or data.shape[0] < 10:
-        return None
+        return np.empty((0, 3))
     model = DBSCAN(eps=0.15)
     model.fit((data[:, :2]))
     labels = model.labels_

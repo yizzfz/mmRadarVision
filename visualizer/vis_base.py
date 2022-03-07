@@ -1,256 +1,106 @@
-import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import traceback
-import datetime
-import pickle
+import time
 
 class Visualizer_Base():
-    def __init__(self, queues, fm=None, xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2], save=False, save_start=1000):
+    """Base class. 
+    """
+    def __init__(self, queues, fm=[], xlim=[-2, 2], ylim=[0, 4], zlim=[-1, 1], 
+                 logger=None, height=[], cam=None, heart_sensor=None):
+        self.n_radars = len(queues)
         self.queues = queues
         self.xlim = xlim
         self.ylim = ylim
         self.zlim = zlim
-        self.fm = fm
-        self.save = None
-        self.step = 0
-        self.save_start = save_start
-        if save:
-            timestamp = datetime.datetime.now().strftime('%m%d%H%M')
-            self.save = f'./data/{timestamp}.pkl'
-            self.data = []
-
-    def run(self, runflag):
-        fig = self.create_fig()
-        self.step = 0
-        while runflag.value == 1:
-            try:
-                data = []
-                for i, q in enumerate(self.queues):
-                    if not q.empty():
-                        frame = q.get(block=True, timeout=3)
-                        data.append(frame)
-                        if self.fm:
-                            for f in self.fm:
-                                frame = f.run(frame)
-                                data.append(frame)
-                        self.plot(i, fig, frame, runflag)
-                if self.save and self.step >= self.save_start:
-                    self.data.append(data)
-                self.step += 1
-
-
-            except Exception as e:
-                print('Exception from visualization thread:', e)
-                print(traceback.format_exc())
-                runflag.value = 0
-                break
-
-        if self.save:
-            with open(self.save, 'wb') as f:
-                pickle.dump(self.data, f)
-
-    def plot(self, idx, fig, frame, runflag):
-        return
-
-    def create_fig(self):
-        return plt.figure()
-
-class Visualizer_Multi_Base():
-    def __init__(self, queues, fm=None, xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2], n_row=1, n_col=2):
-        self.queues = queues
-        self.xlim = xlim
-        self.ylim = ylim
-        self.zlim = zlim
-        self.fm = fm
-        self.n_row = n_row
-        self.n_col = n_col
-        self.n = n_row * n_col
-
-    def run(self, runflag):
-        fig = self.create_fig()
-        while runflag.value == 1:
-            try:
-                for i, q in enumerate(self.queues):
-                    if not q.empty():
-                        frame = q.get(block=True, timeout=3)
-                        if self.fm:
-                            frames_to_draw = []
-                            for f in self.fm:
-                                frame = f.run(frame)
-                                frames_to_draw.append(frame)
-                        self.plot(i, fig, frames_to_draw, runflag)
-
-            except Exception as e:
-                print('Exception from visualization thread:', e)
-                print(traceback.format_exc())
-                runflag.value = 0
-                break
-
-    def plot(self, idx, fig, frame, runflag):
-        return
-
-    def create_fig(self):
-        return plt.figure()
-
-
-class Visualizer_3D_Base(Visualizer_Base):
-    def run(self, runflag):
-        fig = self.create_fig()
-        while runflag.value == 1:
-            try:
-                for i, q in enumerate(self.queues):
-                    if not q.empty():
-                        frame = q.get(block=True, timeout=3)
-                        if self.fm:
-                            for f in self.fm:
-                                frame = f.run(frame)
-                        self.plot(i, fig, frame, runflag)
-
-            except Exception as e:
-                print('Exception from visualization thread:', e)
-                print(traceback.format_exc())
-                runflag.value = 0
-                break
-
-
-class Visualizer_Cam_Base():
-    def __init__(self, queues, fm=None, xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2], 
-                 detector=None, detector_start=1000, save=False, save_start=1000):
-        self.queues = queues
-        self.xlim = xlim
-        self.ylim = ylim
-        self.zlim = zlim
-        self.fm = fm
-        self.detector = detector
-        self.detector_start = detector_start
-        self.step = 0
-        self.save = None
-        self.save_start = save_start
-        
-        if save:
-            timestamp = datetime.datetime.now().strftime('%m%d%H%M')
-            self.save = f'./data/{timestamp}.pkl'
-            self.data = []
-            self.save_frame = True
-
-        self.cam_w = 640
-        self.cam_h = 480
-
-    def run(self, runflag):
-        fig = self.create_fig()
-        cv2.namedWindow("cam")
-        vc = cv2.VideoCapture(0)
-        if not vc.isOpened():  # try to get the first frame
-            print('camera not found')
-            runflag.value = 0
-            return
-        
-        vc.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
-        vc.set(cv2.CAP_PROP_FRAME_HEIGHT, self.cam_h)
-        vc.set(cv2.CAP_PROP_FRAME_WIDTH, self.cam_w)
-        vc.set(cv2.CAP_PROP_FPS, 30)
-
-        w = vc.get(cv2.CAP_PROP_FRAME_WIDTH)
-        h = vc.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        fps = vc.get(cv2.CAP_PROP_FPS)
-        print('[cam] Height', h, 'Width', w, 'FPS', fps)
-        self.cam_w = w
-        self.cam_h = h
-        self.step = 0
-        while runflag.value == 1:
-            try:
-                data = []
-                rval, cam_frame = vc.read()
-                res = None
-                if self.step >= self.detector_start:
-                    cam_frame, res = self.cam_process(cam_frame)
-                cv2.imshow("cam", cam_frame)
-                key = cv2.waitKey(1)
-                data.append(cv2.cvtColor(cam_frame, cv2.COLOR_BGR2GRAY))
-
-                for i, q in enumerate(self.queues):
-                    if not q.empty():
-                        frame = q.get(block=True, timeout=3)
-                        data.append(frame)
-                        if self.fm:
-                            for f in self.fm:
-                                frame = f.run(frame)
-                                data.append(frame)
-                        self.plot(i, fig, frame, runflag, detection=res)
-
-                            
-                if key == 27:  # exit on ESC
-                    runflag.value = 0
-                    break
-                self.step += 1
-                if self.save and self.save_frame and self.step >= self.save_start:
-                    self.data.append(data)
-
-
-            except Exception as e:
-                print('Exception from visualization thread:', e)
-                print(traceback.format_exc())
-                runflag.value = 0
-                break
-
-        
-        if self.save:
-            with open(self.save, 'wb') as f:
-                pickle.dump(self.data, f)
-                print('data saved to', self.save)
-        cv2.destroyWindow("preview")
-        vc.release()
-
-    def cam_process(self, frame):
-        if self.detector is None:
-            return frame, None
+        if fm == []:
+            self.fm = [[] for _ in range(self.n_radars)]
         else:
-            return self.detector.process(frame)
-
-    def plot(self, idx, fig, frame, runflag, detection=None):
-        return
-
-    def create_fig(self):
-        return plt.figure()
-
-
-class Visualizer_NN_Base():
-    def __init__(self, queues, fm=None, model=None, xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2]):
-        self.queues = queues
-        self.xlim = xlim
-        self.ylim = ylim
-        self.zlim = zlim
-        self.fm = fm
-        self.model = model
+            assert len(fm) == self.n_radars and "Length of Frame Managers should be equal to number of radars"
+            self.fm = fm
+        self.step = 0
+        self.logger = logger
+        self.cam = cam
+        self.hs = heart_sensor
+        if height == []:
+            self.height = [0 for _ in range(self.n_radars)]
+        else:
+            assert len(height) == self.n_radars and "Length of heights should be equal to number of radars"
+            self.height = height
+        self.frames = [np.empty((0, 3)) for _ in range(self.n_radars)]
 
     def run(self, runflag):
-        fig = self.create_fig()
+        self.create_fig()
+        self.log('start')
+        self.steps = 0
+        fails = 0
         while runflag.value == 1:
             try:
+                update = False
                 for i, q in enumerate(self.queues):
                     if not q.empty():
+                        update = True
                         frame = q.get(block=True, timeout=3)
-                        if self.fm:
-                            for f in self.fm:
+                        if self.fm[i]:
+                            for f in self.fm[i]:
                                 frame = f.run(frame)
-                        mat, centroids = self.prepare_data(frame)
-                        if mat is None:
-                            continue
-                        labels = self.model.model_predict(mat)
-                        self.plot(i, fig, frame, centroids, labels, runflag)
 
+                        frame[:, 2] = frame[:, 2] + self.height[i]
+                        self.frames[i] = frame
+                        self.plot_each(i, frame, runflag)
+                if update:
+                    if self.logger:
+                        self.logger.update(self.frames, datatype='radar')
+                    if self.cam:
+                        self.cam.update(self.frames)
+                        cam_frame = self.cam.get()
+                        self.logger.update(cam_frame, datatype='cam')
+                    if self.hs:
+                        self.logger.update(self.hs.get(), datatype='heart')
+                    self.steps += 1
+                    self.plot_combined(np.concatenate(self.frames, axis=0), runflag)
+                    fails = 0
+                else:
+                    fails += 1
+                if fails > 10000:
+                    self.log('Waiting for data')
+                    time.sleep(1)
+ 
             except Exception as e:
                 print('Exception from visualization thread:', e)
                 print(traceback.format_exc())
                 runflag.value = 0
                 break
+        self.finish()
 
-    def prepare_data(self, *args):
+    def plot_each(self, idx, frame, runflag):
+        """any processing or plotting specifically about one radar"""
         pass
+    
+    def plot_combined(self, frame, runflag):
+        """any processing or plooting using fused data from all radars"""
+        xs, ys, zs = np.split(frame.T, 3)
+        self.fig.set_xdata(xs)
+        self.fig.set_ydata(ys)
+        keyPressed = plt.waitforbuttonpress(timeout=0.005)
+        if keyPressed:
+            runflag.value = 0
 
-    def plot(self, *args):
-        return
+    def create_fig(self):
+        plt.ion()
+        fig = plt.figure()
+        ax0 = fig.add_subplot(111)
+        ls, = ax0.plot([], [], '.')
+        ax0.set_xlim(self.xlim)
+        ax0.set_ylim(self.ylim)
+        ax0.set_xlabel('x (m)')
+        ax0.set_ylabel('y (m)')
+        plt.show()
+        self.fig = ls
 
-    def create_fig(self, *args):
-        return plt.figure()
+    def finish(self):
+        if self.logger:
+            self.logger.save()
+
+    def log(self, txt):
+        print(f'[{self.__class__.__name__}] {txt}')

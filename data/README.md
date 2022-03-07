@@ -1,5 +1,7 @@
 ## NN data
 use cloud_to_mat.py
+cloud = output from visualiser
+mat = numpy matrix, with pp prefix
 ### 07261815 
 two radar and camera, one person
 1k positive, 4k negative

@@ -7,7 +7,6 @@ class Frame_Manager_Base():
         self.xlim = xlim
         self.ylim = ylim
         self.zlim = zlim
-        return
 
     def run(self, frame):
         if isinstance(frame, np.ndarray) and frame.shape[1] == 3:
@@ -15,7 +14,6 @@ class Frame_Manager_Base():
 
         out = np.concatenate(self.data)
         out = self.filter(out)
-
         return out
 
     def filter(self, frame):
@@ -25,6 +23,5 @@ class Frame_Manager_Base():
             frame = frame[(frame[:, 1] >= self.ylim[0]) & (frame[:, 1] <= self.ylim[1])]
         if self.zlim:
             frame = frame[(frame[:, 2] >= self.zlim[0]) & (frame[:, 2] <= self.zlim[1])]
-
         return frame
 
