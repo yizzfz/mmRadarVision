@@ -2,7 +2,8 @@ import asyncio
 import struct
 import numpy as np
 import datetime
-
+import multiprocessing
+import threading
 from bleak import BleakClient
 import matplotlib.pyplot as plt
 np.set_printoptions(precision=2, suppress=True)
@@ -12,7 +13,7 @@ Polar Ref: https://github.com/polarofficial/polar-ble-sdk/blob/master/technical_
 HR measurement Ref: https://github.com/oesmith/gatt-xml/blob/master/org.bluetooth.characteristic.heart_rate_measurement.xml 
 """
 
-class H10:
+class Polar:
     FUNCTIONS = {
         'ECG': 0, 
         'PPG': 1, 
@@ -48,10 +49,16 @@ class H10:
         self.sensor_start_time = None
         self.data = None
         self.data_only = data_only
+        t = threading.Thread(target=self._run, args=(task, ))
+        t.daemon = True
+        t.start()
+
+    def _run(self, task):
+        # self.log(f'PID {multiprocessing.current_process().pid}')
         if task == 'hr':
-            asyncio.run(self.run_hr)
+            asyncio.run(self.run_hr())
         elif task == 'ecg':
-            asyncio.run(self.run_ecg)
+            asyncio.run(self.run_ecg())
 
     def get(self):
         return self.data
@@ -196,9 +203,10 @@ class H10:
 
     async def run_hr(self):
         try:
+            self.log(f'Connecting to {self.addr}')
             async with BleakClient(self.addr) as client:
                 if not client.is_connected:        
-                    print('Connection Failed')
+                    self.log('Connection Failed')
                     return
                 await self.get_info(client)
                 await client.start_notify(self.HR_MEASUREMENT, self.cb_hrm)
@@ -208,17 +216,36 @@ class H10:
                 # await client.write_gatt_char(self.HR_SERVICE_UUID, cmd, response=True)
                 # await client.stop_notify(self.PMD_CONTROL)
 
-                
         except Exception as e:
             print(e)
 
-    
+    def log(self, msg):
+        print(f'[Polar] {msg}')
+
 
 if __name__ == '__main__':
     ## This is the device MAC ID, please update with your device ID
-    addr = "c1:02:a3:7c:57:42"
-    h10 = H10(addr)
+    h10 = Polar("c1:02:a3:7c:57:42", task='hr', data_only=True)
+    pvs = Polar("a0:9e:1a:ad:ee:48", task='hr', data_only=True)
+    # asyncio.run(h10.run_hr())
 
-    # loop = asyncio.get_event_loop()
-    # loop.run_until_complete(h10.run())
-    asyncio.run(h10.run_hr())
+    hr1 = np.zeros((60))
+    hr2 = np.zeros((60))
+    ls1, = plt.plot(hr1, label='h10')
+    ls2, = plt.plot(hr2, label='vs')
+    plt.xlim([0, 60])
+    plt.ylim([0, 180])
+    plt.ion()
+    plt.legend()
+    plt.show()
+    while True:
+        v1 = h10.get()
+        v2 = pvs.get()
+        if v1 is not None:
+            hr1 = np.concatenate((hr1, [h10.get()]))[-60:]
+            ls1.set_ydata(hr1)
+        if v2 is not None:
+            hr2 = np.concatenate((hr2, [pvs.get()]))[-60:]
+            ls2.set_ydata(hr2)
+        plt.waitforbuttonpress(0.001)
+

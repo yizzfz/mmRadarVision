@@ -5,6 +5,30 @@ from config import *
 out_dim = [60, 30, 60]
 step = 0.01
 
+def parse_radarcfg(radarcfg):
+    with open(radarcfg, 'r') as f:
+        cfg = f.readlines()
+    for line in cfg:
+        if line.startswith('%'):
+            continue
+        if 'profileCfg' in line:
+            strs = line.split(' ')
+            slope = float(strs[8])*1e12
+            samples_per_chirp = int(strs[10])
+            ADC_rate = float(strs[11])*1e3
+        if 'frameCfg' in line:
+            strs = line.split(' ')
+            chirps_per_frame = int(strs[3])
+            frame_time = float(strs[5])/1e3
+    config = {
+        'samples_per_chirp': samples_per_chirp,
+        'chirps_per_frame': chirps_per_frame,
+        'slope': slope,
+        'ADC_rate': ADC_rate,
+        'frame_time': frame_time,
+        'fps': chirps_per_frame / frame_time,
+    }
+    return config
 
 # input (n, 3), output [(n,3), ...]
 def cluster_DBSCAN(data, min_points=5, eps=0.1, ret_centroids=False):

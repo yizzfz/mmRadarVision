@@ -3,9 +3,9 @@
         "dataLoggingMode": "raw",
         "dataTransferMode": "LVDSCapture",
         "dataCaptureMode": "ethernetStream",
-        "lvdsMode": 1,
-        "dataFormatMode": 1,
-        "packetDelay_us": 25,
+        "lvdsMode": 2,
+        "dataFormatMode": 3,
+        "packetDelay_us": 30,
         "ethernetConfig": {
             "DCA1000IPAddress": "192.168.33.180",
             "DCA1000ConfigPort": 4096,
@@ -20,13 +20,13 @@
         },
         "captureConfig": {
             "fileBasePath": "D:\\dca1000",
-            "filePrefix": "test",
+            "filePrefix": "1642",
             "maxRecFileSize_MB": 1024,
             "sequenceNumberEnable": 1,
-            "captureStopMode": "duration",
-            "bytesToCapture": 50000,
-            "durationToCapture_ms": 5000,
-            "framesToCapture": 10
+            "captureStopMode": "infinite",
+            "bytesToCapture": 2560000,
+            "durationToCapture_ms": 10000,
+            "framesToCapture": 40
         },
         "dataFormatConfig": {
             "MSBToggle": 0,
@@ -35,7 +35,7 @@
             "dataPortConfig": [
                 {
                     "portIdx": 0,
-                    "dataType": "real"
+                    "dataType": "complex"
                 },
                 {
                     "portIdx": 1,
@@ -43,11 +43,11 @@
                 },
                 {
                     "portIdx": 2,
-                    "dataType": "real"
+                    "dataType": "complex"
                 },
                 {
                     "portIdx": 3,
-                    "dataType": "real"
+                    "dataType": "complex"
                 },
                 {
                     "portIdx": 4,

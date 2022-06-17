@@ -87,15 +87,13 @@ class Visualizer_Base():
             runflag.value = 0
 
     def create_fig(self):
-        plt.ion()
-        fig = plt.figure()
+        fig = plt.figure('VB')
         ax0 = fig.add_subplot(111)
         ls, = ax0.plot([], [], '.')
         ax0.set_xlim(self.xlim)
         ax0.set_ylim(self.ylim)
         ax0.set_xlabel('x (m)')
         ax0.set_ylabel('y (m)')
-        plt.show()
         self.fig = ls
 
     def finish(self):

@@ -8,7 +8,7 @@ magic_word = b'\x02\x01\x04\x03\x06\x05\x08\x07'
 
 
 class Radar():
-    def __init__(self, name, cfg_port, data_port, runflag, save=None):
+    def __init__(self, name, cfg_port, data_port, runflag, save=None, studio_cli_image=False):
         self.name = name
         self.cfg_port_name = cfg_port
         self.data_port_name = data_port
@@ -16,11 +16,13 @@ class Radar():
         self.cfg_port = None
         self.data_port = None
         self.runflag = runflag
+        self.studio_cli_image = studio_cli_image
 
-    def connect(self, cfg_file):
+    def connect(self, cfg_file) -> bool:
         cfg = read_cfg(cfg_file)
         try:
-            cfg_port = serial.Serial(self.cfg_port_name, 115200)
+            speed = 115200 if not self.studio_cli_image else 921600
+            cfg_port = serial.Serial(self.cfg_port_name, speed, timeout=5)
             data_port = serial.Serial(
                 self.data_port_name, 921600, timeout=0.01)
             data_port.set_buffer_size(rx_size=128000)
@@ -35,28 +37,28 @@ class Radar():
 
         self.log('connected')
         for line in cfg:
-            # self.log('[send]', line)
+            # self.log(f'send {line}')
             line = (line+'\n').encode()
             cfg_port.write(line)
             time.sleep(0.05)
 
-            res = ''
-            while(res == '' or cfg_port.inWaiting()):
-                read_len = cfg_port.inWaiting()
-                message = cfg_port.read(read_len)
-                try:
-                    message = message.decode()
-                except UnicodeDecodeError as e:
-                    self.log(e.reason)
-                    self.log(message)
+            try:
+                full_message = ''
+                while cfg_port.inWaiting():
+                    message = cfg_port.read(cfg_port.inWaiting()).decode()
+                    full_message += message
+                    
+                if 'error' in full_message.lower():
+                    self.log('cfg error')
+                    self.log(full_message)
+                    self.runflag.value = 0
                     return False
-                res += message
-            # self.log(res, end='\n\n')
-            if 'Error' in res:
-                self.log('cfg error')
-                self.log(res)
-                self.runflag.value = 0
-                return -1
+
+            except UnicodeDecodeError as e:
+                self.log(e.reason)
+                self.log(full_message)
+                return False
+
         self.log('all cfg sent')
         return True
 
@@ -90,29 +92,41 @@ class Radar():
             else:
                 if frame_queue.empty():
                     frame_queue.put(([]))
-
         self.cfg_port.write('sensorStop\n'.encode())
 
 
     def run(self, frame_queue):
+        # self.clear_cmd()
         self.log('sensor start')
         self.cfg_port.write('sensorStart\n'.encode())
         data = b''
         send = 0
-        while self.runflag.value == 1:
-            # bytes_to_read = data_port.in_waiting
-            # print(bytes_to_read)
-            data_line = self.data_port.read(8)
-            if magic_word in data_line:
-                assert(data_line.startswith(magic_word))
-                if data != b'' and send:
-                    # enable print flag?
-                    out = self.decode_data(data, frame_queue, 0)
-                data = b''
-                send = 1
-            data += data_line
+        try:
+            while self.runflag.value == 1:
+                # bytes_to_read = data_port.in_waiting
+                # print(bytes_to_read)
+                data_line = self.data_port.read(8)
+                if self.studio_cli_image:
+                    continue
+                if magic_word in data_line:
+                    assert(data_line.startswith(magic_word))
+                    if data != b'' and send:
+                        # enable print flag?
+                        out = self.decode_data(data, frame_queue, 0)
+                    data = b''
+                    send = 1
+                data += data_line
+        except KeyboardInterrupt:
+            pass
         self.cfg_port.write('sensorStop\n'.encode())
         self.log('sensor stop')
+        time.sleep(0.5)
+        # self.clear_cmd()
+        self.exit()
+
+    def clear_cmd(self):
+        while self.cfg_port.inWaiting():
+            self.cfg_port.read(self.cfg_port.inWaiting())
 
     def test(self):
         self.cfg_port.write('sensorStart\n'.encode())
@@ -275,6 +289,11 @@ class Radar():
 
         # xs, ys, zs, dopplers, ranges, peaks
         return np.stack((xs, ys, zs), axis=1)
+
+    def exit(self):
+        self.cfg_port.close()
+        self.data_port.close()
+        self.log('All ports closed')
 
 
 # https://e2e.ti.com/support/sensors/f/1023/p/830398/3073763

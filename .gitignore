@@ -2,6 +2,7 @@ backup
 data
 *.pkl
 *.h5
+*.png
 .vscode
 config.py
 network/ckpts

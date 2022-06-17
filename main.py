@@ -14,10 +14,10 @@ np.set_printoptions(precision=4, suppress=True)
 
 
 
-radar_to_use = [0, 3]
-camera = 0
+radar_to_use = [2]
+camera = None
 heart_sensor = 'c1:02:a3:7c:57:42'
-heart_sensor = None
+# heart_sensor = None
 
 def vis_thread(num_radar, queues, runflag, cam=None, heart_sensor=None):
     if cam is not None:
@@ -25,6 +25,7 @@ def vis_thread(num_radar, queues, runflag, cam=None, heart_sensor=None):
     if heart_sensor is not None:
         heart_sensor = H10(heart_sensor, task='hr', data_only=True)
     logger = Logger('tmp', path='d:/mmwave-log')
+    logger = None
 
     if num_radar == 1:
         fm0 = Frame_Manager_Base(max_length=5, xlim=[-1, 1], ylim=[0.2, 3], zlim=[-1, 1])
