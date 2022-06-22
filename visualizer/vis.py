@@ -13,7 +13,8 @@ class Visualizer_Motor(Visualizer_Base):
         super().plot_combined(frame, runflag)
 
 class Visualizer_AE(Visualizer_Base):
-    """Plot x-y and x-z points.
+    """AE = azimuth + elevation.
+    Plot x-y and x-z points.
     """
     def create_fig(self):
         fig, (ax0, ax1) = plt.subplots(1, 2)

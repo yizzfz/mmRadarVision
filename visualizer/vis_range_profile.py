@@ -1,3 +1,4 @@
+"""Plot range information at zero doppler, debugging purpose only"""
 from .vis_base import Visualizer_Base
 import matplotlib.pyplot as plt
 import numpy as np

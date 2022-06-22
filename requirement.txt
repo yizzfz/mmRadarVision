@@ -6,3 +6,4 @@ h5py
 scipy
 sklearn
 bleak
+shapely

@@ -1,7 +1,7 @@
+"""Code in this file is not guaranteed to work"""
 from .vis_base import Visualizer_Base
 import matplotlib.pyplot as plt
 import numpy as np
-# from imageai.Detection import ObjectDetection
 import sys
 sys.path.append("..")
 from util import cluster_DBSCAN

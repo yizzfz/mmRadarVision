@@ -123,6 +123,7 @@ class Camera_Simple(Camera_Base):
         return frame
 
 class Camera_360(Camera_Base):
+    """to use a 360 degree camera"""
     def __init__(self, cam=3, rotate=False):
         # cv2.namedWindow("full")
         cv2.namedWindow('front')

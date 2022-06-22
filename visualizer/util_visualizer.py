@@ -22,7 +22,6 @@ from scipy import stats
 from shapely.geometry.point import Point
 from shapely import affinity
 from .MinimumBoundingBox import MinimumBoundingBox
-from scipy.spatial.transform import Rotation as R
 from util import cluster_DBSCAN
 
 
@@ -30,16 +29,10 @@ nstd = 2
 max_confidence = 20
 cth = 2
 
-radar_height = 1.5
+
 AoV = 40/180*np.pi
 AoV_e = 45/180*np.pi
 AoV_e1 = 60/180*np.pi
-
-R1 = R.from_euler('z', 180, degrees=True).as_matrix()
-R2 = R.from_euler('z', -90, degrees=True).as_matrix()
-
-T1 = [0, d_ver, radar_height]      
-T2 = [d_hor, 0, radar_height]
 
 class Frame:
     def __init__(self):

@@ -1,3 +1,4 @@
+"""Base class of all visualizer modules"""
 import matplotlib.pyplot as plt
 import numpy as np
 import traceback

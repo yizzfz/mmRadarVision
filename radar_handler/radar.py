@@ -3,12 +3,13 @@ import time
 import pickle
 import struct
 import numpy as np
+import sys
 
 magic_word = b'\x02\x01\x04\x03\x06\x05\x08\x07'
 
 
 class Radar():
-    def __init__(self, name, cfg_port, data_port, runflag, save=None, studio_cli_image=False):
+    def __init__(self, name, cfg_port, data_port, runflag, save=None, studio_cli_image=False, debug=False):
         self.name = name
         self.cfg_port_name = cfg_port
         self.data_port_name = data_port
@@ -17,6 +18,14 @@ class Radar():
         self.data_port = None
         self.runflag = runflag
         self.studio_cli_image = studio_cli_image
+        self.debug = debug
+        if '1443' in self.name or '1642' in self.name:
+            self.decode_func = self.parseDetectedObjects
+        elif '6843' in self.name or '1843' in self.name:
+            self.decode_func = self.parseDetectedObjects6843
+        else:
+            self.log(f'Model {self.name} not supported, trying the 1843 data format')
+            self.decode_func = self.parseDetectedObjects6843
 
     def connect(self, cfg_file) -> bool:
         cfg = read_cfg(cfg_file)
@@ -84,8 +93,7 @@ class Radar():
                 data_line = self.data_port.read(32)
                 if magic_word in data_line:
                     if data != b'' and send:
-                        # enable print flag?
-                        out = self.decode_data(data, frame_queue, 0)
+                        out = self.decode_data(data, frame_queue)
                     data = b''
                     send = 1
                 data += data_line
@@ -103,16 +111,15 @@ class Radar():
         send = 0
         try:
             while self.runflag.value == 1:
-                # bytes_to_read = data_port.in_waiting
-                # print(bytes_to_read)
                 data_line = self.data_port.read(8)
+                if self.debug:
+                    self.log(f'Received {len(data_line)} bytes')
                 if self.studio_cli_image:
                     continue
                 if magic_word in data_line:
                     assert(data_line.startswith(magic_word))
                     if data != b'' and send:
-                        # enable print flag?
-                        out = self.decode_data(data, frame_queue, 0)
+                        out = self.decode_data(data, frame_queue)
                     data = b''
                     send = 1
                 data += data_line
@@ -147,9 +154,9 @@ class Radar():
         self.cfg_port.write('sensorStop\n'.encode())
       
 
-    def decode_data(self, data, frame_queue, print_flag=1):
-        # print('decoding')
-        raw_data = data[:]
+    def decode_data(self, data, frame_queue):
+        if self.debug:
+            self.log(f'Decoding data packet of size {len(data)}')
 
         # Q7I = one Q (unsigned long long) and seven Is (unsigned int)
         try:
@@ -159,15 +166,15 @@ class Radar():
                     'Q7I', data[:header_size])
             else:
                 header_size = 8 + 4 * 8
-                magic, version, length, platform, frameNum, cpuCycles, numObj, numTLVs, _ = struct.unpack(
+                magic, version, length, platform, frameNum, cpuCycles, numObj, numTLVs, subFrameNumber = struct.unpack(
                     'Q8I', data[:header_size])
         except struct.error:
             self.log('Failed decoding header') 
             return None
 
-        if print_flag:
-            print("Packet ID:\t%d " % (frameNum))
-            print("Packet len:\t%d " % (length))
+        if self.debug:
+            self.log("Packet ID:\t%d " % (frameNum))
+            self.log("Packet len:\t%d " % (length))
 
         if numTLVs > 1024:
             return
@@ -182,21 +189,14 @@ class Radar():
                 self.log('Failed decoding TLV')
                 return None
             data = data[8:]
-            if (tlvType == 1):
-                if '6843' in self.name:
-                    res = self.parseDetectedObjects6843(
-                        data, tlvLength, print_flag)
-                else:
-                    res = self.parseDetectedObjects(
-                        data, tlvLength, print_flag)
-
-            elif (tlvType == 7):
+            if (tlvType == 1):      # DETECTED_POINTS
+                res = self.decode_func(data, tlvLength)
+            elif (tlvType == 7):    # DETECTED_POINTS_SIDE_INFO
                 pass
-            elif (tlvType == 2):
+            elif (tlvType == 2):    # RANGE_PROFILE
                 res = self.parseRangeProfile(data, tlvLength)
             # elif (tlvType == 6):
             #     parseStats(data, tlvLength)
-
             else:
                 self.log("tlv type %d not implemented" % (tlvType))
             data = data[tlvLength:]
@@ -208,7 +208,7 @@ class Radar():
     def log(self, txt):
         print(f'[{self.name}] {txt}')
 
-    def parseDetectedObjects6843(self, data, tlvLength, print_flag=1):
+    def parseDetectedObjects6843(self, data, tlvLength):
         assert (tlvLength % 16 == 0)
         numDetectedObj = int(tlvLength/16)
         xs = []
@@ -216,9 +216,9 @@ class Radar():
         zs = []
         vs = []
 
-        # print("\tDetect Obj:\t%d "%(numDetectedObj))
+        # self.log("\tDetect Obj:\t%d "%(numDetectedObj))
         for i in range(numDetectedObj):
-            # print("\tObjId:\t%d "%(i))
+            # self.log("\tObjId:\t%d "%(i))
             # each object = 4 floats (16 bytes)
             try:
                 x, y, z, v = struct.unpack(
@@ -229,15 +229,15 @@ class Radar():
 
             condition = y > 0.2 and y < 10
             if condition is True:
-                if print_flag:
-                    # print("\t\tDopplerIdx:\t%d " % (dopplerIdx))
-                    # print("\t\tRangeIdx:\t%d " % (rangeIdx))
-                    # print("\t\tPeakVal:\t%d " % (peakVal))
-                    print("\t\tX (left-right):\t\t%07.3f " % (x))
-                    print("\t\tY (depth):\t\t%07.3f " % (y))
-                    print("\t\tZ (up-down):\t\t%07.3f " % (z))
-                    print()
-                    # print("%07.3f "%(y))
+                if self.debug:
+                    # self.log("\t\tDopplerIdx:\t%d " % (dopplerIdx))
+                    # self.log("\t\tRangeIdx:\t%d " % (rangeIdx))
+                    # self.log("\t\tPeakVal:\t%d " % (peakVal))
+                    self.log("\t\tX (left-right):\t\t%07.3f " % (x))
+                    self.log("\t\tY (depth):\t\t%07.3f " % (y))
+                    self.log("\t\tZ (up-down):\t\t%07.3f " % (z))
+                    self.log()
+                    # self.log("%07.3f "%(y))
                 xs.append(x)
                 ys.append(y)
                 zs.append(z)
@@ -245,8 +245,8 @@ class Radar():
         return np.stack((xs, ys, zs), axis=1)
 
 
-    def parseDetectedObjects(self, data, tlvLength, print_flag=1):
-        # hreader = two unsigned short
+    def parseDetectedObjects(self, data, tlvLength):
+        # header = two unsigned short
         numDetectedObj, xyzQFormat = struct.unpack('2H', data[:4])
         xs = []
         ys = []
@@ -254,9 +254,9 @@ class Radar():
         dopplers = []
         ranges = []
         peaks = []
-        # print("\tDetect Obj:\t%d "%(numDetectedObj))
+        # self.log("\tDetect Obj:\t%d "%(numDetectedObj))
         for i in range(numDetectedObj):
-            # print("\tObjId:\t%d "%(i))
+            # self.log("\tObjId:\t%d "%(i))
             # each object = 6 short, 1st and 3rd being unsigned
             try:
                 rangeIdx, dopplerIdx, peakVal, x, y, z = struct.unpack(
@@ -271,15 +271,15 @@ class Radar():
 
             condition = y > 0.2 and y < 10
             if condition is True:
-                if print_flag:
-                    print("\t\tDopplerIdx:\t%d " % (dopplerIdx))
-                    print("\t\tRangeIdx:\t%d " % (rangeIdx))
-                    print("\t\tPeakVal:\t%d " % (peakVal))
-                    print("\t\tX (left-right):\t\t%07.3f " % (x))
-                    print("\t\tY (depth):\t\t%07.3f " % (y))
-                    print("\t\tZ (up-down):\t\t%07.3f " % (z))
-                    print()
-                    # print("%07.3f "%(y))
+                if self.debug:
+                    self.log("\t\tDopplerIdx:\t%d " % (dopplerIdx))
+                    self.log("\t\tRangeIdx:\t%d " % (rangeIdx))
+                    self.log("\t\tPeakVal:\t%d " % (peakVal))
+                    self.log("\t\tX (left-right):\t\t%07.3f " % (x))
+                    self.log("\t\tY (depth):\t\t%07.3f " % (y))
+                    self.log("\t\tZ (up-down):\t\t%07.3f " % (z))
+                    self.log()
+                    # self.log("%07.3f "%(y))
                 xs.append(x)
                 ys.append(y)
                 zs.append(z)
@@ -327,3 +327,16 @@ if __name__ == '__main__':
     r = Radar('test', 'COM6', 'COM5', 1)
     r.connect('../iwr1443/cfg/new.cfg')
     r.test()
+
+"""
+TLV type
+MMWDEMO_OUTPUT_MSG_DETECTED_POINTS = 1,
+MMWDEMO_OUTPUT_MSG_RANGE_PROFILE,
+MMWDEMO_OUTPUT_MSG_NOISE_PROFILE,
+MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP,
+MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP,
+MMWDEMO_OUTPUT_MSG_STATS,
+MMWDEMO_OUTPUT_MSG_DETECTED_POINTS_SIDE_INFO,
+MMWDEMO_OUTPUT_MSG_AZIMUT_ELEVATION_STATIC_HEAT_MAP,
+MMWDEMO_OUTPUT_MSG_TEMPERATURE_STATS,
+"""

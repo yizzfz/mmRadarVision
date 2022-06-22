@@ -1,3 +1,4 @@
+"""Using two radars. Used in paper https://doi.org/10.1109/MAES.2020.3021322"""
 import matplotlib.pyplot as plt
 import numpy as np
 import traceback
