@@ -22,7 +22,7 @@ np.set_printoptions(precision=4, suppress=True)
 radar_to_use = 5
 camera = None
 polar_addr = POLAR['H10']
-data_format = 'fft'
+dataformat = 'raw'
 polar = None
 logger = None
 
@@ -31,10 +31,7 @@ def vis_raw_thread(queue, runflag, config):
     polar = Polar(polar_addr, task='hr', data_only=True)
     logger = Logger('HR', path='D:/mmwave-log/hr')
 
-    if data_format == 'raw':
-        vis = Visualizer_Raw(config, queue, runflag, polar=polar, logger=logger)
-    else:
-        vis = Visualizer_Raw(config, queue, runflag, polar=polar, logger=logger)
+    vis = Visualizer_Raw(config, queue, runflag, polar=polar, logger=logger, dataformat=dataformat)
         # vis = Visualizer_HeartRate_Alpha(config, queue, runflag, polar=polar, logger=logger)
         # vis = Visualizer_HeartRate_NN(config, queue, runflag, polar=polar, logger=logger)
     vis.run()
@@ -51,7 +48,7 @@ def radar_thread(queue, runflag, radar):
 
 def dca1000_thread(queue, runflag, name, config):
     print(f'[main] DCA1000 PID {multiprocessing.current_process().pid}')
-    dca1000 = DCA1000Handler(name, config, runflag, queue, data_format=data_format)
+    dca1000 = DCA1000Handler(name, config, runflag, queue, data_format=dataformat)
     dca1000.run()
 
 def main():

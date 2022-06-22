@@ -13,20 +13,21 @@ sys.path.insert(1, 'C:/Users/hc13414/OneDrive - University of Bristol/mmwave/sim
 from vital_sign_processor import VitalSignProcessor
 from pattern import generate_pulse
 from algo import lowpass, highpass, bandpass
-sys.path.insert(1, 'C:/Users/hc13414/OneDrive - University of Bristol/mmwave/heartrate')
+sys.path.insert(1, 'C:/Users/hc13414/OneDrive - University of Bristol/mmwave/heartrate/archive')
 from mmhnet import MMHNet
 
 device = torch.device('cuda')
 torch.set_grad_enabled(False)
 
 class Visualizer_Raw:
-    def __init__(self, config, input_queue, runflag, polar=None, logger=None):
+    def __init__(self, config, input_queue, runflag, polar=None, logger=None, dataformat='raw'):
         self.config = config
         self.input_queue = input_queue
         self.runflag = runflag
         self.polar = polar
         self.logger = logger
         self.polar_gt = None
+        self.dataformat = dataformat
         if self.logger:
             self.logger.set_header({'config': self.config})
 
@@ -71,6 +72,18 @@ class Visualizer_Raw:
         plt.show()
 
     def plot(self, data):
+        if self.dataformat == 'fft':
+            self.plot_fft(data)
+        elif self.dataformat == 'raw':
+            self.plot_raw(data)
+
+        if self.polar_gt:
+            self.log(f'GT {self.polar_gt:.2f}')
+        keyPressed = plt.waitforbuttonpress(timeout=0.005)
+        if keyPressed:
+            self.runflag.value = 0
+
+    def plot_fft(self, data):
         data = np.abs(data)      # take the fft mags
         if self.im is None:
             print(data.shape)
@@ -79,12 +92,14 @@ class Visualizer_Raw:
             self.im = self.ax.imshow(data.T, aspect=aspect, origin='lower')
         else:
             self.im.set_data(data.T)
+            
+    def plot_raw(self, data):
+        chirp0 = np.abs(data[0])
+        if self.im is None:
+            self.im,  = plt.plot(chirp0)
+        else:
+            self.im.set_ydata(chirp0)
 
-        if self.polar_gt:
-            self.log(f'GT {self.polar_gt:.2f}')
-        keyPressed = plt.waitforbuttonpress(timeout=0.005)
-        if keyPressed:
-            self.runflag.value = 0
 
     def log(self, txt):
         print(f'[{self.__class__.__name__}] {txt}')
