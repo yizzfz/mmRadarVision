@@ -1,4 +1,4 @@
-# Radar-Vision
+# mmRadarVision
 Using mmWave radars for some computer vision tasks
 
 0. Install Python and run ```pip install -r requirement.txt```
