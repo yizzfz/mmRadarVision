@@ -3,6 +3,7 @@ Radar name, port (application/user and data), and config file path
 """
 RADAR_CFG = [
     ('1843', 'COM4', 'COM3', './radar_cfgs/iwr1843/cfg/profile.cfg'),
+    ('1843', 'COM4', 'COM3', './radar_cfgs/iwr1843/cfg/profile_dca1000.cfg'),
 ]
 
 """
