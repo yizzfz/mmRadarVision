@@ -2,6 +2,7 @@ numpy
 opencv-python
 matplotlib
 pyserial
-imageai
-tensorflow-gpu
-keras
+h5py
+scipy
+sklearn
+bleak
