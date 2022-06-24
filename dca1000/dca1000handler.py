@@ -43,6 +43,9 @@ class DCA1000Handler:
         with open(os.path.join(self.cwd, jsonfile)) as f:
             dca1000config = json.load(f)
         dca1000config = self.convert_to_abs_path(dca1000config)
+        basepath = dca1000config['DCA1000Config']['captureConfig']['fileBasePath']
+        if not os.path.exists(basepath):
+            os.mkdir(basepath)
         if '1642' in model or '6843' in model or '1843' in model:
             dca1000config['DCA1000Config']['lvdsMode'] = 2
         else:
