@@ -54,7 +54,7 @@ class DCA1000Handler:
         self.data_location = dca1000config['DCA1000Config']['captureConfig']['fileBasePath']
         self.data_prefix = dca1000config['DCA1000Config']['captureConfig']['filePrefix']
         # self.data_size = dca1000config['DCA1000Config']['captureConfig']['maxRecFileSize_MB'] * 1e6       # in bytes
-        self.log(f'Expecting {self.data_per_sp * self.send_rate:.0f} bytes of data per seconds')
+        self.log(f'Expecting {self.bytes_per_sp * self.send_rate:.0f} bytes of data per seconds')
         # self.log(f'Each file should contain {self.data_size/self.bytes_per_second:.2f} seconds of data')
 
         self.FP = FFTProcessor(radarcfg, multiplier=4, max_d=5)
