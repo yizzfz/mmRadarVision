@@ -51,9 +51,9 @@ class Visualizer_Base():
                         self.plot_each(i, frame, runflag)
                 if update:
                     if self.logger:
-                        self.logger.update(self.frames, datatype='radar')
+                        self.logger.update(self.frames[:], datatype='radar')
                     if self.cam:
-                        self.cam.update(self.frames)
+                        self.cam.update(self.frames[:])
                         cam_frame = self.cam.get()
                         self.logger.update(cam_frame, datatype='cam')
                     if self.hs:
