@@ -9,7 +9,7 @@ class Frame_Manager_Base():
         self.zlim = zlim
 
     def run(self, frame):
-        if isinstance(frame, np.ndarray) and frame.shape[1] == 3:
+        if isinstance(frame, np.ndarray) and frame.shape[1] >= 3:
             self.data.append(frame)
 
         out = np.concatenate(self.data)

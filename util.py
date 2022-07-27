@@ -18,8 +18,14 @@ def parse_radarcfg(radarcfg):
             ADC_rate = float(strs[11])*1e3
         if 'frameCfg' in line:
             strs = line.split(' ')
-            chirps_per_frame = int(strs[3])
+            chirploops_per_frame = int(strs[3])
+            chirps_per_loop = int(strs[2]) - int(strs[1]) + 1
+            chirps_per_frame = chirploops_per_frame * chirps_per_loop
             frame_time = float(strs[5])/1e3
+        if 'channelCfg' in line:
+            strs = line.split(' ')
+            n_rx = f'{int(strs[1]):04b}'.count('1')
+            n_tx = f'{int(strs[2]):03b}'.count('1')
     config = {
         'samples_per_chirp': samples_per_chirp,
         'chirps_per_frame': chirps_per_frame,
@@ -27,6 +33,10 @@ def parse_radarcfg(radarcfg):
         'ADC_rate': ADC_rate,
         'frame_time': frame_time,
         'fps': chirps_per_frame / frame_time,
+        'n_rx': n_rx,
+        'n_tx': n_tx,
+        'chirploops_per_frame': chirploops_per_frame,
+        'chirps_per_loop': chirps_per_loop
     }
     return config
 

@@ -57,6 +57,7 @@ class Visualizer_Raw:
         plt.show()
 
     def plot(self, data):
+        data = data[0]      # only plot the first rx
         if self.dataformat == 'fft':
             self.plot_fft(data)
         elif self.dataformat == 'raw':
@@ -71,7 +72,6 @@ class Visualizer_Raw:
     def plot_fft(self, data):
         data = np.abs(data)      # take the fft mags
         if self.im is None:
-            print(data.shape)
             aspect = int(data.shape[0]/data.shape[1])
             aspect = max(aspect, 1)
             self.im = self.ax.imshow(data.T, aspect=aspect, origin='lower')

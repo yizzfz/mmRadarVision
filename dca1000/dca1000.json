@@ -5,7 +5,7 @@
         "dataCaptureMode": "ethernetStream",
         "lvdsMode": 2,
         "dataFormatMode": 3,
-        "packetDelay_us": 30,
+        "packetDelay_us": 25,
         "ethernetConfig": {
             "DCA1000IPAddress": "192.168.33.180",
             "DCA1000ConfigPort": 4096,

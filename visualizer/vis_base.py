@@ -8,12 +8,13 @@ class Visualizer_Base():
     """Base class. 
     """
     def __init__(self, queues, fm=[], xlim=[-2, 2], ylim=[0, 4], zlim=[-1, 1], 
-                 logger=None, height=[], cam=None, heart_sensor=None):
+                 logger=None, height=[], cam=None, heart_sensor=None, plotaxes=(0, 1, 2)):
         self.n_radars = len(queues)
         self.queues = queues
         self.xlim = xlim
         self.ylim = ylim
         self.zlim = zlim
+        self.plotaxes = plotaxes
         if fm == []:
             self.fm = [[] for _ in range(self.n_radars)]
         else:
@@ -48,7 +49,7 @@ class Visualizer_Base():
 
                         frame[:, 2] = frame[:, 2] + self.height[i]
                         self.frames[i] = frame
-                        self.plot_each(i, frame, runflag)
+                        self.plot_each(i, frame[:, self.plotaxes], runflag)
                 if update:
                     if self.logger:
                         self.logger.update(self.frames[:], datatype='radar')
@@ -59,7 +60,7 @@ class Visualizer_Base():
                     if self.hs:
                         self.logger.update(self.hs.get(), datatype='heart')
                     self.steps += 1
-                    self.plot_combined(np.concatenate(self.frames, axis=0), runflag)
+                    self.plot_combined(np.concatenate(self.frames, axis=0)[:, self.plotaxes], runflag)
                     fails = 0
                 else:
                     fails += 1

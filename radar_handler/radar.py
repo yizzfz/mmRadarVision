@@ -9,23 +9,45 @@ magic_word = b'\x02\x01\x04\x03\x06\x05\x08\x07'
 
 
 class Radar():
-    def __init__(self, name, cfg_port, data_port, runflag, save=None, studio_cli_image=False, debug=False):
+    def __init__(self, name, cfg_port, data_port, runflag, studio_cli_image=False, debug=False, outformat='p', sdk=None):
+        """
+        Parameters:
+            name: String, '1443', '1642, '1843', etc.
+            cfg_port: Int, Application/User COM port.
+            data_port: Int, Data COM port.
+            runflag: Global flag, control the status of the system.
+            sdk: Float, if a specific sdk version is used. Default None.
+            outformat: 'p' for pointcloud, 'v' for velocity, 's' for snr, 'n' for noise. Can be 'pvsn' for example. 
+            studio_cli_image: Bool, if the radar is loaded with a studio_cli image.
+            debug: Bool, print debug information.
+        """
         self.name = name
         self.cfg_port_name = cfg_port
         self.data_port_name = data_port
-        self.save = save
         self.cfg_port = None
         self.data_port = None
         self.runflag = runflag
         self.studio_cli_image = studio_cli_image
         self.debug = debug
-        if '1443' in self.name or '1642' in self.name:
-            self.decode_func = self.parseDetectedObjects
-        elif '6843' in self.name or '1843' in self.name:
-            self.decode_func = self.parseDetectedObjects6843
+        oldsdk = False
+        self.side_info = False
+        if sdk is None:
+            if '1443' in self.name or '1642' in self.name:
+                oldsdk = True
+        elif sdk < 3:
+            oldsdk = True
+
+        if oldsdk:
+            self.log('Assuming the old SDK is used (version < 3.0).')
+            if outformat is not 'p':
+                self.log('Ignoring output format')
+                outformat = 'p'
+            self.decode_func = self.parse_detected_objects_oldsdk
         else:
-            self.log(f'Model {self.name} not supported, trying the 1843 data format')
-            self.decode_func = self.parseDetectedObjects6843
+            self.decode_func = self.parse_detected_objects
+            if 's' in outformat or 'n' in outformat:
+                self.side_info = True
+        self.outformat = self.outformat_mask(outformat)
 
     def connect(self, cfg_file) -> bool:
         cfg = read_cfg(cfg_file)
@@ -181,6 +203,7 @@ class Radar():
 
         data = data[header_size:]
         res = None
+        side = None
 
         for i in range(numTLVs):
             try:
@@ -191,8 +214,8 @@ class Radar():
             data = data[8:]
             if (tlvType == 1):      # DETECTED_POINTS
                 res = self.decode_func(data, tlvLength)
-            elif (tlvType == 7):    # DETECTED_POINTS_SIDE_INFO
-                pass
+            elif (tlvType == 7) and self.side_info:    # DETECTED_POINTS_SIDE_INFO
+                side = self.parse_side_info(data, tlvLength)
             elif (tlvType == 2):    # RANGE_PROFILE
                 res = self.parseRangeProfile(data, tlvLength)
             # elif (tlvType == 6):
@@ -202,14 +225,37 @@ class Radar():
             data = data[tlvLength:]
 
         if frame_queue.empty() and res is not None:
+            if side is not None:
+                res = np.stack((res, side), axis=1)
+            res = res[:, self.outformat]
             frame_queue.put((res))
         return res
        
     def log(self, txt):
         print(f'[{self.name}] {txt}')
 
-    def parseDetectedObjects6843(self, data, tlvLength):
-        assert (tlvLength % 16 == 0)
+    def parse_side_info(self, data, tlvLength):
+        assert (tlvLength % 4 == 0)        # each point has 2 2-byte words
+        numDetectedObj = int(tlvLength/4)
+        snrs = []
+        noises = []
+        for i in range(numDetectedObj):
+            # each object = 2 int16
+            try:
+                snr, noise = struct.unpack(
+                    '2h', data[4*i:4*i+4])
+            except struct.error:
+                self.log('Failed decoding side info')
+                return None
+            snrs.append(snr)
+            noises.append(noise)
+
+        res = np.stack((snrs, noises), axis=1)
+        return res
+
+
+    def parse_detected_objects(self, data, tlvLength):
+        assert (tlvLength % 16 == 0)        # each point has 4 4-byte words
         numDetectedObj = int(tlvLength/16)
         xs = []
         ys = []
@@ -241,11 +287,12 @@ class Radar():
                 xs.append(x)
                 ys.append(y)
                 zs.append(z)
+                vs.append(v)
+            res = np.stack((xs, ys, zs, vs), axis=1)
+        return res
 
-        return np.stack((xs, ys, zs), axis=1)
 
-
-    def parseDetectedObjects(self, data, tlvLength):
+    def parse_detected_objects_oldsdk(self, data, tlvLength):
         # header = two unsigned short
         numDetectedObj, xyzQFormat = struct.unpack('2H', data[:4])
         xs = []
@@ -290,6 +337,17 @@ class Radar():
         # xs, ys, zs, dopplers, ranges, peaks
         return np.stack((xs, ys, zs), axis=1)
 
+    def outformat_mask(self, outformat):
+        m = []
+        if 'p' in outformat:
+            m += [0, 1, 2]
+        if 'v' in outformat:
+            m.append(3)
+        if 's' in outformat:
+            m.append(4)
+        if 'n' in outformat:
+            m.append(5)
+
     def exit(self):
         self.cfg_port.close()
         self.data_port.close()
@@ -329,7 +387,7 @@ if __name__ == '__main__':
     r.test()
 
 """
-TLV type
+TLV type SKD >= 3.0
 MMWDEMO_OUTPUT_MSG_DETECTED_POINTS = 1,
 MMWDEMO_OUTPUT_MSG_RANGE_PROFILE,
 MMWDEMO_OUTPUT_MSG_NOISE_PROFILE,
@@ -339,4 +397,12 @@ MMWDEMO_OUTPUT_MSG_STATS,
 MMWDEMO_OUTPUT_MSG_DETECTED_POINTS_SIDE_INFO,
 MMWDEMO_OUTPUT_MSG_AZIMUT_ELEVATION_STATIC_HEAT_MAP,
 MMWDEMO_OUTPUT_MSG_TEMPERATURE_STATS,
+
+TLV type SKD < 3.0
+MMWDEMO_OUTPUT_MSG_DETECTED_POINTS = 1,
+MMWDEMO_OUTPUT_MSG_RANGE_PROFILE,
+MMWDEMO_OUTPUT_MSG_NOISE_PROFILE,
+MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP,
+MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP,
+MMWDEMO_OUTPUT_MSG_STATS,
 """

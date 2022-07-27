@@ -100,7 +100,7 @@ class Camera_Simple(Camera_Base):
         if not self.Q.empty():
             self.data = self.Q.get()
         try:
-            data_stack = np.concatenate(self.data, axis=0)
+            data_stack = np.concatenate(self.data, axis=0)[:, :3]
         except ValueError as e:
             return frame
         FoV_h = self.FoV_h
