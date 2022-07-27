@@ -4,6 +4,7 @@ import pickle
 import struct
 import numpy as np
 import sys
+import warnings
 
 magic_word = b'\x02\x01\x04\x03\x06\x05\x08\x07'
 
@@ -39,7 +40,7 @@ class Radar():
 
         if oldsdk:
             self.log('Assuming the old SDK is used (version < 3.0).')
-            if outformat is not 'p':
+            if outformat != 'p':
                 self.log('Ignoring output format')
                 outformat = 'p'
             self.decode_func = self.parse_detected_objects_oldsdk
@@ -202,8 +203,8 @@ class Radar():
             return
 
         data = data[header_size:]
-        res = None
         side = None
+        res = None
 
         for i in range(numTLVs):
             try:
@@ -221,12 +222,15 @@ class Radar():
             # elif (tlvType == 6):
             #     parseStats(data, tlvLength)
             else:
-                self.log("tlv type %d not implemented" % (tlvType))
+                warnings.warn(f'[{self.name}] Warning: tlv type {tlvType} discarded.')
             data = data[tlvLength:]
 
         if frame_queue.empty() and res is not None:
             if side is not None:
-                res = np.stack((res, side), axis=1)
+                n_points = min(res.shape[0], side.shape[0])
+                res = res[:n_points]
+                side = side[:n_points]
+                res = np.concatenate((res, side), axis=1)
             res = res[:, self.outformat]
             frame_queue.put((res))
         return res
@@ -347,6 +351,7 @@ class Radar():
             m.append(4)
         if 'n' in outformat:
             m.append(5)
+        return m
 
     def exit(self):
         self.cfg_port.close()

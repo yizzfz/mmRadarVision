@@ -36,8 +36,8 @@ class Visualizer_Base():
         self.log('start')
         self.steps = 0
         fails = 0
-        while runflag.value == 1:
-            try:
+        try:
+            while runflag.value == 1:
                 update = False
                 for i, q in enumerate(self.queues):
                     if not q.empty():
@@ -68,11 +68,12 @@ class Visualizer_Base():
                     self.log('Waiting for data')
                     time.sleep(1)
  
-            except Exception as e:
-                print('Exception from visualization thread:', e)
-                print(traceback.format_exc())
-                runflag.value = 0
-                break
+        except Exception as e:
+            print('Exception from visualization thread:', e)
+            print(traceback.format_exc())
+        except KeyboardInterrupt:
+            pass
+        runflag.value = 0
         self.finish()
 
     def plot_each(self, idx, frame, runflag):

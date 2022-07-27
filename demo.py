@@ -1,3 +1,5 @@
+import os
+os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 import multiprocessing
 from radar_handler import Radar
 from visualizer import Visualizer_AE, Visualizer_TwoR
@@ -8,6 +10,8 @@ from camera import Camera_Base
 from heart_sensor import Polar
 import matplotlib
 import numpy as np
+import signal
+
 matplotlib.use('TkAgg')
 np.set_printoptions(precision=4, suppress=True)
 
@@ -22,7 +26,7 @@ def vis_thread(num_radar, queues, runflag, cam=None, heart_sensor=None):
     if heart_sensor is not None:
         heart_sensor = Polar(heart_sensor, task='hr', data_only=True)
     logger = Logger('tmp', path='d:/mmwave-log')
-    logger = None
+    # logger = None
 
     if num_radar == 1:
         fm0 = Frame_Manager_Base(max_length=5, xlim=[-1, 1], ylim=[0.2, 3], zlim=[-1, 1])
@@ -41,7 +45,7 @@ def radar_thread(queue, runflag, radar):
     # e.g. radar = ('1443A', 'COM6', 'COM7', './iwr1443/cfg/zoneA.cfg')
     print(f'[main] Radar {name} PID {multiprocessing.current_process().pid}')
 
-    radar = Radar(name, cfg_port, data_port, runflag)
+    radar = Radar(name, cfg_port, data_port, runflag, outformat='pvs')
     success = radar.connect(cfg_file)
     if not success:
         raise ValueError(f'Radar {name} Connection Failed')
@@ -52,12 +56,17 @@ def main():
     runflag = multiprocessing.Value('i', 1)
     num_radar = len(radar_to_use)
     queues = []
-    threads = []
 
     for _ in range(num_radar):
         q = multiprocessing.Queue()
         queues.append(q)
 
+    def signal_handler(*args):
+        print('Exiting')
+        runflag.value = 0
+    signal.signal(signal.SIGINT, signal_handler)
+
+    threads = []
     t0 = multiprocessing.Process(target=vis_thread, args=(num_radar, queues, runflag, camera, heart_sensor))
     threads.append(t0)
 
