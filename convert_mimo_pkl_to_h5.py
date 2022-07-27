@@ -41,7 +41,6 @@ def convert_raw_to_raw(filename):
     print(f'converting {len(ind)} data')
     for cnt, i in enumerate(ind):
         rawdata = raw[i-frame_per_data:i]
-        import pdb; pdb.set_trace()
         rawdata = np.transpose(rawdata, (1, 0, 2, 3))
         rawdata = rawdata.reshape(n_rx, -1, samples)
         gt = gts[i-frame_per_data:i]

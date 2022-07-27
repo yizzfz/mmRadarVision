@@ -18,6 +18,9 @@ def convert_raw_to_raw(filename):
     raw = np.asarray(raw)
     gts = np.asarray(gts)
 
+    if len(raw.shape) == 4:
+        raw = raw[:, 0, :, :]
+
     # discard data at begining
     start = np.argmax(gts != None) + 5
     samples = raw.shape[2]
@@ -48,6 +51,6 @@ def convert_raw_to_raw(filename):
     h5fd.close()
 
 if __name__ == "__main__":
-    datasets = ['0000-0000.pkl']    # change this to your file name
+    datasets = ['0000-0000']    # change this to your file name
     for f in datasets:
         convert_raw_to_raw(f)
