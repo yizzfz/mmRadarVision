@@ -60,7 +60,7 @@ class DCA1000Handler:
         self.log(f'Expecting {self.bytes_per_packet * self.send_rate:,.0f} bytes of data per seconds, data packet shape {self.data_sp_shape}')
         # self.log(f'Each file should contain {self.data_size/self.bytes_per_second:.2f} seconds of data')
 
-        self.FP = FFTProcessor(radarcfg, multiplier=self.fft_multiplier, max_d=5)
+        self.FP = FFTProcessor(radarcfg, multiplier=1, max_d=5)
         with open(os.path.join(self.cwd, 'tmp.json'), 'w') as write_file:
             json.dump(dca1000config, write_file, indent=2)
         self.control_exe = os.path.join(self.cwd, 'DCA1000EVM_CLI_Control.exe')

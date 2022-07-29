@@ -10,4 +10,4 @@ from .vis_raw import Visualizer_Raw
 # from .vis_range_profile import Visualizer_Range_Profile
 # from .vis_fm_stages import Visualizer_Single_FM_Stages
 # from .vis_2r import Visualizer_TwoR_Tracker
-# from .vis_2r_pose import Visualizer_TwoR_Vertical
+from .vis_2r_pose import Visualizer_TwoR_Vertical
