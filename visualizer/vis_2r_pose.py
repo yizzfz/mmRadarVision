@@ -13,7 +13,7 @@ from scipy import stats
 
 
 class Visualizer_TwoR_Vertical(Visualizer_Base):
-    def __init__(self, *args, plot_all_points=False, **kwargs):
+    def __init__(self, *args, plot_all_points=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.plot_all_points = plot_all_points
 
@@ -56,9 +56,6 @@ class Visualizer_TwoR_Vertical(Visualizer_Base):
             xs1 = xs1.flatten()
             ys1 = ys1.flatten()
             zs1 = zs1.flatten()
-            xs1 = xs1 - d_hor/2
-            zs1 = zs1 + d_ver/2
-            zs1 = zs1 + self.height1
             if self.plot_all_points:
                 self.ls0a.set_xdata(xs1)
                 self.ls0a.set_ydata(ys1)
@@ -71,9 +68,6 @@ class Visualizer_TwoR_Vertical(Visualizer_Base):
             xs2 = xs2.flatten()
             ys2 = ys2.flatten()
             zs2 = zs2.flatten()
-            xs2 = xs2 + d_hor/2
-            zs2 = zs2 - d_ver/2
-            zs2 = zs2 + self.height2
             if self.plot_all_points:
                 self.ls0b.set_xdata(xs2)
                 self.ls0b.set_ydata(ys2)
@@ -83,4 +77,9 @@ class Visualizer_TwoR_Vertical(Visualizer_Base):
             self.ps2 = xs2, ys2, zs2
         else:
             print('Error: Using more than two queues, but visualizer designed for two')
+            runflag.value = 0
+
+    def plot_combined(self, frame, runflag):
+        keyPressed = plt.waitforbuttonpress(timeout=0.005)
+        if keyPressed:
             runflag.value = 0

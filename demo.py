@@ -2,7 +2,7 @@ import os
 os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 import multiprocessing
 from radar_handler import Radar
-from visualizer import Visualizer_AE, Visualizer_TwoR
+from visualizer import Visualizer_AE, Visualizer_TwoR, Visualizer_TwoR_Vertical
 from frame_manager import Frame_Manager_Base, Frame_Manager_Cluster, Frame_Manager_Foreground
 from config import *
 from logger import Logger
@@ -15,7 +15,7 @@ import signal
 matplotlib.use('TkAgg')
 np.set_printoptions(precision=4, suppress=True)
 
-radar_to_use = [0]
+radar_to_use = [2, 3]
 camera = None
 heart_sensor = None
 
@@ -25,19 +25,20 @@ def vis_thread(num_radar, queues, runflag, cam=None, heart_sensor=None):
         cam = Camera_Base(cam)
     if heart_sensor is not None:
         heart_sensor = Polar(heart_sensor, task='hr', data_only=True)
-    logger = Logger('tmp', path='d:/mmwave-log')
-    # logger = None
+    logger = Logger('tmp', path='D:/mmwave-log')
+    logger = None
 
     if num_radar == 1:
-        fm0 = Frame_Manager_Base(max_length=5, xlim=[-1, 1], ylim=[0.2, 3], zlim=[-1, 1])
-        vis = Visualizer_AE(queues, [[fm0]], logger=logger, xlim=[-1, 1], ylim=[0.2, 3], zlim=[0, 2], height=[1.2], cam=cam, heart_sensor=heart_sensor)
+        fm0 = Frame_Manager_Base(max_length=25, xlim=[-1, 1], ylim=[0.2, 3], zlim=[-1, 1])
+        vis = Visualizer_AE(queues, [[fm0]], logger=logger, xlim=[-1, 1], ylim=[0.2, 3], zlim=[0, 2], height=[1.3], cam=cam, heart_sensor=heart_sensor)
         vis.run(runflag)
     elif num_radar == 2:
-        fm01 = Frame_Manager_Base(max_length=12, xlim=[-0.75, 0.75], ylim=[0.2, 5], zlim=[-1, 1])
-        fm02 = Frame_Manager_Base(max_length=12, xlim=[-0.75, 0.75], ylim=[0.2, 5], zlim=[-1, 1])
-        fm11 = Frame_Manager_Cluster(max_length=1, min_points=8)
-        fm12 = Frame_Manager_Cluster(max_length=1, min_points=8)
-        vis = Visualizer_TwoR(queues, [[fm01, fm11], [fm02, fm12]], xlim=[-1.5, 1.5], ylim=[0, 1.5], cam=cam, logger=logger, heart_sensor=heart_sensor)
+        fm01 = Frame_Manager_Base(max_length=12, xlim=[-1.5, 1.5], ylim=[0.2, 5], zlim=[-1, 1])
+        fm02 = Frame_Manager_Base(max_length=12, xlim=[-1.5, 1.5], ylim=[0.2, 5], zlim=[-1, 1])
+        # fm11 = Frame_Manager_Cluster(max_length=1, min_points=8)
+        # fm12 = Frame_Manager_Cluster(max_length=1, min_points=8)
+        vis = Visualizer_TwoR_Vertical(queues, [[fm01], [fm02]], xlim=[-1.5, 1.5], ylim=[0.2, 5], zlim=[0, 2],
+                                       height=[radar_height1, radar_height2], cam=cam, logger=logger, heart_sensor=heart_sensor)
         vis.run(runflag)
  
 def radar_thread(queue, runflag, radar):

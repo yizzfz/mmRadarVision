@@ -47,11 +47,11 @@ class Visualizer_TwoR(Visualizer_Base):
         ax0.add_artist(radar1)
         ax0.add_artist(radar2)
 
-        ax1.scatter([0], [d_ver], [radar_height], color='r', s=30)
-        ax1.scatter([d_hor], [0], [radar_height], color='b', s=30)
+        ax1.scatter([0], [d_ver], [self.height[0]], color='r', s=30)
+        ax1.scatter([d_hor], [0], [self.height[1]], color='b', s=30)
 
-        ax1.plot([0, 0], [d_ver, d_ver], [0, radar_height], color='r')
-        ax1.plot([d_hor, d_hor], [0, 0], [0, radar_height], color='b')
+        ax1.plot([0, 0], [d_ver, d_ver], [0, self.height[0]], color='r')
+        ax1.plot([d_hor, d_hor], [0, 0], [0, self.height[1]], color='b')
         ax1.set_xlim(self.xlim)
         ax1.set_ylim(self.ylim)
         ax1.set_zlim(self.zlim)
@@ -98,11 +98,11 @@ class Visualizer_TwoR(Visualizer_Base):
         show3dpoints = self.show3dpoints
         if show3dpoints:
             self.ax1.cla()
-            self.ax1.scatter([0], [d_ver], [radar_height], color='r', s=30)
-            self.ax1.scatter([d_hor], [0], [radar_height], color='b', s=30)
+            self.ax1.scatter([0], [d_ver], [self.height[0]], color='r', s=30)
+            self.ax1.scatter([d_hor], [0], [self.height[1]], color='b', s=30)
 
-            self.ax1.plot([0, 0], [d_ver, d_ver], [0, radar_height], color='r')
-            self.ax1.plot([d_hor, d_hor], [0, 0], [0, radar_height], color='b')
+            self.ax1.plot([0, 0], [d_ver, d_ver], [0, self.height[0]], color='r')
+            self.ax1.plot([d_hor, d_hor], [0, 0], [0, self.height[1]], color='b')
             self.ax1.set_xlim(self.xlim)
             self.ax1.set_ylim(self.ylim)
             self.ax1.set_zlim(self.zlim)

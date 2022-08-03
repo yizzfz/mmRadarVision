@@ -14,7 +14,7 @@ dependency = ['DCA1000EVM_CLI_Control.exe', 'DCA1000EVM_CLI_Record.exe', 'RF_API
 
 class DCA1000Handler:
     """Only designed with 1 RX"""
-    def __init__(self, model, radarcfg, runflag, queue, send_rate=1, port=60203, data_format='fft', fft_multiplier=4):
+    def __init__(self, model, radarcfg, runflag, queue, send_rate=1, port=60203, data_format='fft', fft_multiplier=1):
         self.cwd = os.path.dirname(os.path.abspath(__file__))
         self.runflag = runflag
         self.model = model
@@ -60,7 +60,7 @@ class DCA1000Handler:
         self.log(f'Expecting {self.bytes_per_packet * self.send_rate:,.0f} bytes of data per seconds, data packet shape {self.data_sp_shape}')
         # self.log(f'Each file should contain {self.data_size/self.bytes_per_second:.2f} seconds of data')
 
-        self.FP = FFTProcessor(radarcfg, multiplier=self.fft_multiplier, max_d=5)
+        self.FP = FFTProcessor(radarcfg, multiplier=fft_multiplier, max_d=5)
         with open(os.path.join(self.cwd, 'tmp.json'), 'w') as write_file:
             json.dump(dca1000config, write_file, indent=2)
         self.control_exe = os.path.join(self.cwd, 'DCA1000EVM_CLI_Control.exe')
