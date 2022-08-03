@@ -23,6 +23,8 @@ class Visualizer_Base():
         self.step = 0
         self.logger = logger
         self.cam = cam
+        if self.cam is not None:
+            self.cam.start()
         self.hs = heart_sensor
         if height == []:
             self.height = [0 for _ in range(self.n_radars)]

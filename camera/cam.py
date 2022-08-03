@@ -229,3 +229,8 @@ def perspective(frame, wFOV, hFOV, THETA, PHI, height, width, RADIUS=128):
     persp = cv2.remap(frame, lon.astype(np.float32), lat.astype(
         np.float32), cv2.INTER_CUBIC, borderMode=cv2.BORDER_WRAP)
     return persp
+
+
+if __name__ == '__main__':
+    cam = Camera_Base(0)
+    cam.start()
