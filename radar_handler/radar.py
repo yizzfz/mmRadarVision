@@ -293,8 +293,7 @@ class Radar():
                 ys.append(y)
                 zs.append(z)
                 vs.append(v)
-            res = np.stack((xs, ys, zs, vs), axis=1)
-        return res
+        return np.stack((xs, ys, zs, vs), axis=1)
 
 
     def parse_detected_objects_oldsdk(self, data, tlvLength):
