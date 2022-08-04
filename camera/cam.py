@@ -9,17 +9,18 @@ from queue import Queue, LifoQueue
 
 class Camera_Base:
     """Only display camera images, does not interfere with radar"""
-    def __init__(self, cam=0, rotate=False, detector=None):
-        self.winname = 'cam'
-        self.FoV_h = 28
-        self.FoV_v = 28
+    def __init__(self, cam=0, rotate=False, detector=None, FoV_horizontal=28, FoV_vertical=28, name='cam'):
+        self.run = False
+        self.out = None
+        self.winname = name
+        self.FoV_h = FoV_horizontal
+        self.FoV_v = FoV_vertical
         self.rotate = rotate
         self.detector = detector
-        cv2.namedWindow(self.winname, 0)
-        vc = cv2.VideoCapture(cam)
+        vc = cv2.VideoCapture(cam, cv2.CAP_DSHOW)
 
         if not vc.isOpened():  # try to get the first frame
-            print('[cam] camera not found')
+            self.log(f'Camera {cam} not found')
             return
 
         # vc.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M','J','P','G'))
@@ -32,15 +33,13 @@ class Camera_Base:
         self.fps = vc.get(cv2.CAP_PROP_FPS)
         self.frameSize = self.w, self.h
 
-        print('[cam] Height', self.h, 'Width', self.w, 'FPS', self.fps)
-        self.run = True
+        self.log(f'Height {self.h} Width {self.w} FPS {self.fps}')
         self.Q = Queue(maxsize=1)
         self.vc = vc
-        self.out = None
-
-        t = Thread(target=self.start, args=())
-        t.daemon = True
-        t.start()
+        self.run = True
+        self.t = Thread(target=self.start, args=())
+        self.t.daemon = False
+        self.t.start()
 
     def video_info(self):
         while self.frameSize is None:
@@ -48,11 +47,12 @@ class Camera_Base:
         return self.frameSize
 
     def start(self):
+        cv2.namedWindow(self.winname, 0)
         while self.run:
             rval, frame = self.vc.read()
             if not rval:
-                print('[cam] camera failed')
-                return
+                self.log('camera failed')
+                break
             frame = self.process(frame)
             self.out = frame
             cv2.imshow(self.winname, frame)
@@ -62,7 +62,7 @@ class Camera_Base:
 
     def update(self, info):
         """Feed radar data into the camera module"""
-        if self.Q.empty():
+        if self.run and self.Q.empty():
             self.Q.put(info)
 
     def process(self, frame):
@@ -79,8 +79,10 @@ class Camera_Base:
         self.run = False
         time.sleep(0.2)
         self.t.join()
-        print('[cam] stop')
+        self.log('stop')
 
+    def log(self, txt):
+        print(f'[{self.__class__.__name__}] {txt}')
 
 class Camera_Simple(Camera_Base):
     """Overlap radar points on top of camera iamge"""
@@ -130,14 +132,14 @@ class Camera_360(Camera_Base):
         self.vc = cv2.VideoCapture(cam, cv2.CAP_DSHOW)
 
         if not self.vc.isOpened():  # try to get the first frame
-            print('[cam] camera not found')
+            self.log('camera not found')
             return
 
         self.w = int(self.vc.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.h = int(self.vc.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.fps = self.vc.get(cv2.CAP_PROP_FPS)
         self.frameSize = self.w, self.h
-        print('[cam] Height', self.h, 'Width', self.w, 'FPS', self.fps)
+        self.log(f'Height {self.h} Width {self.w} FPS {self.fps}')
 
         self.out_dim = (300, 400)
         self.run = True
@@ -152,11 +154,11 @@ class Camera_360(Camera_Base):
         return self.out_dim
 
     def start(self):
-        print('[cam] start')
+        self.log('Camera start')
         while self.run:
             rval, frame = self.vc.read()
             if not rval:
-                print('[cam] camera failed')
+                self.log('Camera failed to read')
                 return
 
             front = perspective(frame, 60, 80, 180, 0,
@@ -232,5 +234,6 @@ def perspective(frame, wFOV, hFOV, THETA, PHI, height, width, RADIUS=128):
 
 
 if __name__ == '__main__':
-    cam = Camera_Base(0)
-    cam.start()
+    cam = Camera_Base(1)
+    while True:
+        pass

@@ -147,7 +147,8 @@ class Radar():
                     send = 1
                 data += data_line
         except KeyboardInterrupt:
-            pass
+            self.runflag.value = 0
+        
         self.cfg_port.write('sensorStop\n'.encode())
         self.log('sensor stop')
         time.sleep(0.5)

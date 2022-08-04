@@ -23,8 +23,6 @@ class Visualizer_Base():
         self.step = 0
         self.logger = logger
         self.cam = cam
-        if self.cam is not None:
-            self.cam.start()
         self.hs = heart_sensor
         if height == []:
             self.height = [0 for _ in range(self.n_radars)]
@@ -58,8 +56,9 @@ class Visualizer_Base():
                     if self.cam:
                         self.cam.update(self.frames[:])
                         cam_frame = self.cam.get()
-                        self.logger.update(cam_frame, datatype='cam')
-                    if self.hs:
+                        if self.logger:
+                            self.logger.update(cam_frame, datatype='cam')
+                    if self.hs and self.logger:
                         self.logger.update(self.hs.get(), datatype='heart')
                     self.steps += 1
                     self.plot_combined(np.concatenate(self.frames, axis=0)[:, self.plotaxes], runflag)
@@ -104,6 +103,9 @@ class Visualizer_Base():
     def finish(self):
         if self.logger:
             self.logger.save()
+        if self.cam:
+            self.cam.stop()
+        self.log('Exiting')
 
     def log(self, txt):
         print(f'[{self.__class__.__name__}] {txt}')
