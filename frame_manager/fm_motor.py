@@ -1,7 +1,5 @@
 from .fm_base import Frame_Manager_Base
 import numpy as np
-from sklearn.cluster import DBSCAN
-
 
 class Frame_Manager_Motor(Frame_Manager_Base):
     def __init__(self, motorpos, max_length=1):

@@ -3,7 +3,13 @@ import datetime
 import os
 
 class Logger():
+    """Logger module for data recording."""
     def __init__(self, name, path='./log'):
+        """
+        Parameters:
+            name: name of the record result file.
+            path: path of the record result file.
+        """
         timestamp = datetime.datetime.now().strftime('%m%d-%H%M')
         if not os.path.exists(path):
             os.mkdir(path)
@@ -14,6 +20,7 @@ class Logger():
         self.t1 = None
 
     def update(self, data, datatype='misc'):
+        """Store one frame of data of certain type"""
         if self.t0 is None:
             self.t0 = datetime.datetime.now()
         self.t1 = datetime.datetime.now()
@@ -22,9 +29,11 @@ class Logger():
         self.D[datatype].append(data)
 
     def set_header(self, header:dict):
+        """Append a header to the result file"""
         self.header = dict(self.header, **header)
 
     def save(self):
+        """Save the recorded data to disk"""
         data_length = 0
         for i in self.D:
             length = len(self.D[i])

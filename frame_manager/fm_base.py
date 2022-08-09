@@ -2,7 +2,16 @@ import numpy as np
 from collections import deque
 
 class Frame_Manager_Base():
+    """Base class of Frame Manager. 
+    It stacks frames in temporal domain and filter points based on desired field of view."""
     def __init__(self, max_length=10, xlim=None, ylim=None, zlim=None):
+        """
+        Parameters:
+            max_length: number of frames to stack.
+            xlim: left-right limit.
+            ylim: distance limit.
+            zlim: height limit.
+        """
         self.data = deque([], max_length)
         self.xlim = xlim
         self.ylim = ylim

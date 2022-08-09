@@ -8,14 +8,21 @@ from threading import Thread
 from queue import Queue, LifoQueue
 
 class Camera_Base:
-    """Only display camera images, does not interfere with radar"""
-    def __init__(self, cam=0, rotate=False, detector=None, FoV_horizontal=28, FoV_vertical=28, name='cam'):
+    """Connect a Camera as a peripheral"""
+    def __init__(self, cam=0, detector=None, FoV_horizontal=28, FoV_vertical=28, name='cam'):
+        """
+        Parameters:
+            cam: Camera index, default 0.
+            detector: For future use.
+            FoV_horizontal: Horizontal field of view of the camera in degrees.
+            FoV_vertical: Vertical field of view of the camera in degrees.
+            name: Name of the camera display window. 
+        """
         self.run = False
         self.out = None
         self.winname = name
         self.FoV_h = FoV_horizontal
         self.FoV_v = FoV_vertical
-        self.rotate = rotate
         self.detector = detector
         vc = cv2.VideoCapture(cam, cv2.CAP_DSHOW)
 
@@ -42,6 +49,7 @@ class Camera_Base:
         self.t.start()
 
     def video_info(self):
+        """Return the frame size of the camera"""
         while self.frameSize is None:
             time.sleep(0.1)
         return self.frameSize
@@ -61,11 +69,12 @@ class Camera_Base:
         self.vc.release()
 
     def update(self, info):
-        """Feed radar data into the camera module"""
+        """Feed radar data into the camera module."""
         if self.run and self.Q.empty():
             self.Q.put(info)
 
     def process(self, frame):
+        """To process the camera frame. Default no processing."""
         return frame
 
     def get(self):
@@ -85,8 +94,17 @@ class Camera_Base:
         print(f'[{self.__class__.__name__}] {txt}')
 
 class Camera_Simple(Camera_Base):
-    """Overlap radar points on top of camera iamge"""
+    """Connect a Camera as a peripheral, display radar point clouds on top of camera iamge"""
     def __init__(self, *args, height=1, **kwargs):
+        """
+        Parameters:
+            cam: Integer, camera index, e.g. 0.
+            detector: For future use.
+            FoV_horizontal: Horizontal field of view of the camera.
+            FoV_vertical: Vertical field of view of the camera.
+            name: Name of the camera display window. 
+            height: Height of the camera above the ground.
+        """
         super().__init__(*args, **kwargs)
         self.data = np.empty((0, 3))
         self.height = height
@@ -125,8 +143,8 @@ class Camera_Simple(Camera_Base):
         return frame
 
 class Camera_360(Camera_Base):
-    """to use a 360 degree camera"""
-    def __init__(self, cam=3, rotate=False):
+    """Connect a 360 degree camera"""
+    def __init__(self, cam=3):
         # cv2.namedWindow("full")
         cv2.namedWindow('front')
         self.vc = cv2.VideoCapture(cam, cv2.CAP_DSHOW)
@@ -170,7 +188,9 @@ class Camera_360(Camera_Base):
 
 
 def perspective(frame, wFOV, hFOV, THETA, PHI, height, width, RADIUS=128):
-    """Helper function for converting a 360 image into a plain image. THETA is azimuth angle, PHI is elevation angle, both in degree"""
+    """Helper function for converting a 360 image into a plain image. THETA is azimuth angle, PHI is elevation angle (in degree)
+    Adopted from https://github.com/fuenwang/PanoramaUtility/blob/master/Utils/Equirec2Cube.py
+    """
     equ_h = frame.shape[0]
     equ_w = frame.shape[1]
     equ_cx = (equ_w - 1) / 2.0

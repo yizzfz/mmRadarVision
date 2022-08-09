@@ -3,7 +3,14 @@ import numpy as np
 from sklearn.cluster import DBSCAN
 
 class Frame_Manager_Cluster(Frame_Manager_Base):
+    """Perform DBSCAN clustering."""
     def __init__(self, max_length=10, min_points=20, axes=(0, 1)):
+        """
+        Parameters:
+            max_length: number of frames to stack.
+            min_points: minimal number of points in each cluster.
+            axes: apply clustering along which dimensions, default x-y. 
+        """
         super().__init__(max_length)
         self.min_points = min_points
         self.axes = axes
@@ -18,6 +25,11 @@ class Frame_Manager_Cluster(Frame_Manager_Base):
 
 
 def cluster_DBSCAN(data, min_points, axes):
+    """DBSCAN algorithm.
+    Parameters:
+        min_points: minimal number of points in each cluster.
+        axes: apply clustering along which dimensions. 
+    """
     clusters = np.ndarray((0, 3))
     if not data.any() or data.shape[0] < 10:
         return np.empty((0, 3))
@@ -32,5 +44,4 @@ def cluster_DBSCAN(data, min_points, axes):
             if class_data.shape[0] < min_points:
                 continue
             clusters = np.concatenate((clusters, class_data))
-
     return clusters

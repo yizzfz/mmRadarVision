@@ -8,45 +8,63 @@ import socket
 from threading import Thread
 from collections import deque
 from queue import Empty
+import multiprocessing
 
-
-dependency = ['DCA1000EVM_CLI_Control.exe', 'DCA1000EVM_CLI_Record.exe', 'RF_API.dll']
+"""These files should be presented in the folder""" 
+dependency = ['DCA1000EVM_CLI_Control.exe', 'DCA1000EVM_CLI_Record.exe', 'RF_API.dll', 'dca1000.json']
 
 class DCA1000Handler:
-    """Only designed with 1 RX"""
-    def __init__(self, model, radarcfg, runflag, queue, send_rate=1, port=60203, data_format='fft', fft_multiplier=1):
-        self.cwd = os.path.dirname(os.path.abspath(__file__))
+    """Connect a DCA1000EVM for real-time raw data streaming, based on TI DCA1000CLI. 
+    Only support 1 pair of tx and rx. For multi-antenna mode use DCA1000Handler_MIMO."""
+    def __init__(self, model: str, radarcfg: dict, runflag: multiprocessing.Value, queue: multiprocessing.Queue, 
+                 send_rate=1, port=60203, data_format='fft', fft_multiplier=1):
+        """
+        Parameters:
+            model: radar model, e.g. "1843".
+            radarcfg: decoded radar config file using `util.parse_radarcfg`.
+            runflag: shared variable indicating the running status of the system.
+            queue: shared queue for sending data from this module to a Visualizer.
+            send_rate: number of packets to send per second, default 1.
+            port: socket port of `DCA1000EVM_CLI_Control.exe`.
+            data_format: "raw" for raw data streaming, or "fft" to enable inline range-FFT processing.
+            fft_multiplier: zero-padding factor for range-FFT, default 1 (no zero padding). 
+        """
+        # initialize variables
+        self.cwd = os.path.dirname(os.path.abspath(__file__)) 
         self.runflag = runflag
         self.model = model
         self.port = port
         self.data_format = data_format
         self.Q = queue
         self.Q.cancel_join_thread()
-        self.steps = 0
         self.samples_per_chirp = 0
         self.frames_per_second = 0
         self.chirps_per_frame = 0
-        # self.data_per_second = 0
-        # self.bytes_per_second = 0
         self.data_per_packet = 0
         self.bytes_per_packet = 0
         self.send_rate = send_rate
         self.fft_multiplier = fft_multiplier
-        self.cfg_name = 'tmp.json'
+        self.FP = FFTProcessor(radarcfg, multiplier=fft_multiplier, max_d=5)    # if use inline range-FFT
         for f in dependency:
             assert os.path.exists(os.path.join(self.cwd, f)) and f"{f} is required to run DCA1000"
+
+        # calcualte data packet size based on the radar configuration
         self.parse_radarcfg(radarcfg)
-        # self.data_epilog = None
         assert self.data_per_packet > 0 and "Failed to read radar cfg"
 
+        # parse the configuration file and make a copy
+        self.cfg_name = 'tmp.json'
         jsonfile = 'dca1000.json'
         with open(os.path.join(self.cwd, jsonfile)) as f:
             dca1000config = json.load(f)
-        dca1000config = self.convert_to_abs_path(dca1000config)
+        dca1000config = self.convert_to_abs_path(dca1000config) # the path in the json file has to be absolute path
         basepath = dca1000config['DCA1000Config']['captureConfig']['fileBasePath']
         if not os.path.exists(basepath):
             os.mkdir(basepath)
-        if '1642' in model or '6843' in model or '1843' in model:
+        # 1243 and 1443 use 4 lvds lanes, 1642, 1843 and 6843 use 2 lvds lanes
+        if '1443' in model:
+            dca1000config['DCA1000Config']['lvdsMode'] = 4
+        elif '1642' in model or '6843' in model or '1843' in model:
             dca1000config['DCA1000Config']['lvdsMode'] = 2
         else:
             raise ValueError(f'radar not supported')
@@ -54,31 +72,30 @@ class DCA1000Handler:
         self.data_location = dca1000config['DCA1000Config']['captureConfig']['fileBasePath']
         self.data_prefix = dca1000config['DCA1000Config']['captureConfig']['filePrefix']
         self.packet_delay = int(dca1000config['DCA1000Config']['packetDelay_us'])
-        self.allowed_bandwidth = 12000/(12+self.packet_delay) / 8
-        # self.data_size = dca1000config['DCA1000Config']['captureConfig']['maxRecFileSize_MB'] * 1e6       # in bytes
+        self.allowed_bandwidth = 12000/(12+self.packet_delay) / 8   # ethernet bandwidth according to DCA1000EVM datasheet
         self.log(f'Packet delay set to {self.packet_delay} us, bandwidth {self.allowed_bandwidth:.2f} MB/s')
         self.log(f'Expecting {self.bytes_per_packet * self.send_rate:,.0f} bytes of data per seconds, data packet shape {self.data_sp_shape}')
-        # self.log(f'Each file should contain {self.data_size/self.bytes_per_second:.2f} seconds of data')
 
-        self.FP = FFTProcessor(radarcfg, multiplier=fft_multiplier, max_d=5)
         with open(os.path.join(self.cwd, 'tmp.json'), 'w') as write_file:
             json.dump(dca1000config, write_file, indent=2)
         self.control_exe = os.path.join(self.cwd, 'DCA1000EVM_CLI_Control.exe')
         try:
             # self.run_cmd('reset_fpga')
             # self.run_cmd('reset_ar_device')
-            self.run_cmd('fpga')
-            self.run_cmd('record')
+            self.run_cmd('fpga')        # configure fpga
+            self.run_cmd('record')      # configure recording
         except RuntimeError as e:
             self.log('Configuration of DCA1000 failed')
             self.log(e)
             self.runflag.value = 0
 
+        # configure a socket server to recieve data from DCA1000CLI
         self.t = Thread(target=self.run_server, args=())
         self.t.daemon = True
         self.t.start()
 
     def receive_all(self, socket):
+        """Receive `bytes_per_packet` data from the socket"""
         data = bytearray()
         while len(data) < self.bytes_per_packet:
             packet = socket.recv(self.bytes_per_packet - len(data))
@@ -88,6 +105,7 @@ class DCA1000Handler:
         return data
 
     def adc_format(self, adcData):
+        """Re-arrange the data from DCA1000 into an appropriate format"""
         if '1642' in self.model or '6843' in self.model or '1843' in self.model:
             '''
             Data in:    n_frame, n_chirp, n_rx, n_samples/2, IQ, 2
@@ -108,6 +126,7 @@ class DCA1000Handler:
         return adcData
 
     def run_server(self):
+        """Start a socket server to receive data from CLI and send to Visualizer"""
         first_packet = True
         t0 = None
         data_rate = deque(maxlen=10)
@@ -120,23 +139,23 @@ class DCA1000Handler:
             with conn:
                 try:
                     while self.runflag.value == True:
-                        data = self.receive_all(conn)
+                        data = self.receive_all(conn)       # recieve one packet
                         adcData = np.frombuffer(data, dtype=np.int16)
-                        adcData = self.adc_format(adcData)
-                        if self.data_format == 'fft':
+                        adcData = self.adc_format(adcData)  # re-arrange to matrix format
+                        if self.data_format == 'fft':       # perform range-FFT
                             fftData = self.FP.compute_FFTs(adcData, split=False)
                             self.Q.put(fftData)
-                        elif self.data_format == 'raw':
+                        elif self.data_format == 'raw':     # send raw data direclty
                             self.Q.put(adcData)
                         t1 = time.time()
-                        if t0 is not None:
+                        if t0 is not None:                  # detect congestion (receive rate > send rate)
                             data_rate.append(t1-t0)
                             congestion = (np.mean(data_rate)*self.send_rate-1)*100
                             if len(data_rate) == 10 and congestion > 3:
                                 self.log(
                                     f'Warning: data congestion detected, rate {congestion:.2f}%')
                         t0 = t1
-                        if first_packet:
+                        if first_packet:                    # when the first data packet is sent
                             first_packet = False
                             datashape = fftData.shape if self.data_format == 'fft' else adcData.shape
                             self.log(f'Data transmission established successfully, data shape {datashape}')
@@ -146,6 +165,7 @@ class DCA1000Handler:
         self.Q.close()
 
     def run(self):
+        """Start the module"""
         self.clean_files()
         self.run_cmd('start_record')
         self.log('Recording starts')
@@ -190,6 +210,7 @@ class DCA1000Handler:
     #     self.data_epilog = adcData
 
     def clean_files(self):
+        """Clean data files in the output dir"""
         cnt = 0
         if not os.path.isdir(self.data_location):
             return
@@ -219,6 +240,7 @@ class DCA1000Handler:
             raise RuntimeError(f'Failed to send cmd {cmd} to DCA1000')
 
     def convert_to_abs_path(self, config):
+        """Convert a relative path to a absolute path"""
         data_location = config['DCA1000Config']['captureConfig']['fileBasePath']
         if os.path.isabs(data_location):
             return config
@@ -231,6 +253,8 @@ class DCA1000Handler:
         print('[DCA1000]', msg)
 
 class DCA1000Handler_MIMO(DCA1000Handler):
+    """Connect a DCA1000EVM for real-time raw data streaming, based on TI DCA1000CLI. 
+    Support MIMO in TDM mode."""
     def __init__(self, model, radarcfg, runflag, queue, send_rate=1, port=60203, data_format='fft', fft_multiplier=1):
         super().__init__(model, radarcfg, runflag, queue, send_rate, port, data_format, fft_multiplier)
 
@@ -244,6 +268,7 @@ class DCA1000Handler_MIMO(DCA1000Handler):
         self.data_sp_shape = self.n_rx*self.chirps_per_loop, self.frame_per_packet * self.chirploops_per_frame, self.samples_per_chirp
 
     def adc_format(self, adcData):
+        """Re-arrange the data from DCA1000 into an appropriate format (assumed TDM mode)"""
         if '1642' in self.model or '6843' in self.model or '1843' in self.model:
             '''
             Data in:    (n_frame, n_chirp), n_rx, n_samples/2, IQ, 2
@@ -269,6 +294,7 @@ class DCA1000Handler_MIMO(DCA1000Handler):
 
     def TDM_shape(self, adcData):
         """ 
+        Re-arrange data matrix.
         In: n_frame, n_chirp (=n_chirploop*n_tx), n_sample, n_rx
         Out: n_frame * n_chirploop, n_sample, n_rx * n_tx
         """
@@ -279,8 +305,14 @@ class DCA1000Handler_MIMO(DCA1000Handler):
 
 
 class FFTProcessor:
+    """To perform inline range-FFT."""
     def __init__(self, config, multiplier=4, max_d=1.5):
-        """config must include: fps, samples_per_chirp, ADC_rate, slope"""
+        """
+        Parameters:
+            config: must include: fps, samples_per_chirp, ADC_rate, slope
+            multiplier: zero-padding factor of the range-FFT
+            max_d: maximum distance of range-FFT
+        """
         self.config = config
         self.multiplier = multiplier
         self.max_d = max_d

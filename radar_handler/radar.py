@@ -10,17 +10,18 @@ magic_word = b'\x02\x01\x04\x03\x06\x05\x08\x07'
 
 
 class Radar():
-    def __init__(self, name, cfg_port, data_port, runflag, studio_cli_image=False, debug=False, outformat='p', sdk=None):
+    """Connect to a mmWave radar."""
+    def __init__(self, name: str, cfg_port: int, data_port: int, runflag, studio_cli_image=False, debug=False, outformat='p', sdk=None):
         """
         Parameters:
-            name: String, '1443', '1642, '1843', etc.
-            cfg_port: Int, Application/User COM port.
-            data_port: Int, Data COM port.
-            runflag: Global flag, control the status of the system.
-            sdk: Float, if a specific sdk version is used. Default None.
-            outformat: 'p' for pointcloud, 'v' for velocity, 's' for snr, 'n' for noise. Can be 'pvsn' for example. 
-            studio_cli_image: Bool, if the radar is loaded with a studio_cli image.
-            debug: Bool, print debug information.
+            name: str, '1443', '1642, '1843', etc.
+            cfg_port: int, Application/User COM port.
+            data_port: int, Data COM port.
+            runflag: shared variable indicating the running status of the system.
+            sdk: float, if a specific sdk version is used. Default None.
+            outformat: 'p' for pointcloud, 'v' for velocity, 's' for snr, 'n' for noise, e.g. 'pvsn'. 
+            studio_cli_image: bool, if the radar is loaded with a studio_cli image.
+            debug: bool, print debug information.
         """
         self.name = name
         self.cfg_port_name = cfg_port
@@ -32,6 +33,7 @@ class Radar():
         self.debug = debug
         oldsdk = False
         self.side_info = False
+        # default sdk for 1443 or 1642 is assumed to be v1.2
         if sdk is None:
             if '1443' in self.name or '1642' in self.name:
                 oldsdk = True
@@ -51,8 +53,12 @@ class Radar():
         self.outformat = self.outformat_mask(outformat)
 
     def connect(self, cfg_file) -> bool:
+        """Connect to the radar and send the configuration file"""
         cfg = read_cfg(cfg_file)
         try:
+            # default cfg port baud rate is 115200
+            # default cfg port baud rate for studio cli image is 921600
+            # default data port baud rate is always 921600
             speed = 115200 if not self.studio_cli_image else 921600
             cfg_port = serial.Serial(self.cfg_port_name, speed, timeout=5)
             data_port = serial.Serial(
@@ -68,6 +74,7 @@ class Radar():
         self.data_port = data_port
 
         self.log('connected')
+        # send the configuration file line by line
         for line in cfg:
             # self.log(f'send {line}')
             line = (line+'\n').encode()
@@ -75,6 +82,7 @@ class Radar():
             time.sleep(0.05)
 
             try:
+                # receive and decode the response
                 full_message = ''
                 while cfg_port.inWaiting():
                     message = cfg_port.read(cfg_port.inWaiting()).decode()
@@ -95,6 +103,7 @@ class Radar():
         return True
 
     def run_periodically(self, frame_queue, period=3):
+        """Switch on and off the radar periodically"""
         start = time.time()
         run = True
         data = b''
@@ -127,12 +136,14 @@ class Radar():
 
 
     def run(self, frame_queue):
+        """Switch on the radar"""
         # self.clear_cmd()
         self.log('sensor start')
         self.cfg_port.write('sensorStart\n'.encode())
         data = b''
         send = 0
         try:
+            # read from data port until the magic word is found
             while self.runflag.value == 1:
                 data_line = self.data_port.read(8)
                 if self.debug:
@@ -142,6 +153,7 @@ class Radar():
                 if magic_word in data_line:
                     assert(data_line.startswith(magic_word))
                     if data != b'' and send:
+                        # decode the packet if the magic word is found
                         out = self.decode_data(data, frame_queue)
                     data = b''
                     send = 1
@@ -179,9 +191,11 @@ class Radar():
       
 
     def decode_data(self, data, frame_queue):
+        """Decode a data packet"""
         if self.debug:
             self.log(f'Decoding data packet of size {len(data)}')
 
+        # decode the header to find the number of TLVs
         # Q7I = one Q (unsigned long long) and seven Is (unsigned int)
         try:
             if '1443' in self.name:
@@ -207,6 +221,7 @@ class Radar():
         side = None
         res = None
 
+        # decode each TLV
         for i in range(numTLVs):
             try:
                 tlvType, tlvLength = struct.unpack('2I', data[:8])
@@ -227,11 +242,13 @@ class Radar():
             data = data[tlvLength:]
 
         if frame_queue.empty() and res is not None:
+            # if received side information, append to the output
             if side is not None:
                 n_points = min(res.shape[0], side.shape[0])
                 res = res[:n_points]
                 side = side[:n_points]
                 res = np.concatenate((res, side), axis=1)
+            # mask output based on the configured format
             res = res[:, self.outformat]
             frame_queue.put((res))
         return res
@@ -240,6 +257,7 @@ class Radar():
         print(f'[{self.name}] {txt}')
 
     def parse_side_info(self, data, tlvLength):
+        """Parse the side information (snr, etc) of each detected point. For SKD v3.0 and later."""
         assert (tlvLength % 4 == 0)        # each point has 2 2-byte words
         numDetectedObj = int(tlvLength/4)
         snrs = []
@@ -260,6 +278,7 @@ class Radar():
 
 
     def parse_detected_objects(self, data, tlvLength):
+        """Parse the xyz coordinate and velocity of each detected point. For SKD v3.0 and later."""
         assert (tlvLength % 16 == 0)        # each point has 4 4-byte words
         numDetectedObj = int(tlvLength/16)
         xs = []
@@ -278,6 +297,7 @@ class Radar():
                 self.log('Failed decoding object')
                 return None
 
+            # ignore points too close or too far
             condition = y > 0.2 and y < 10
             if condition is True:
                 if self.debug:
@@ -297,6 +317,7 @@ class Radar():
 
 
     def parse_detected_objects_oldsdk(self, data, tlvLength):
+        """Parse the xyz coordinate and velocity (etc) of each detected point. For SKD < 3.0."""
         # header = two unsigned short
         numDetectedObj, xyzQFormat = struct.unpack('2H', data[:4])
         xs = []
@@ -320,6 +341,7 @@ class Radar():
             y = (y*1.0/(1 << xyzQFormat))
             z = (z*1.0/(1 << xyzQFormat))
 
+            # ignore points too close or too far
             condition = y > 0.2 and y < 10
             if condition is True:
                 if self.debug:
@@ -342,6 +364,7 @@ class Radar():
         return np.stack((xs, ys, zs), axis=1)
 
     def outformat_mask(self, outformat):
+        """Mask output matrix based on configured data format"""
         m = []
         if 'p' in outformat:
             m += [0, 1, 2]
@@ -372,8 +395,6 @@ class Radar():
             self.log('Failed decoding range profile')
             return None
         return res
-
-        
 
 
 def read_cfg(file):

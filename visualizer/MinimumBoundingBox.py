@@ -1,4 +1,7 @@
-"""from https://bitbucket.org/william_rusnack/minimumboundingbox/src/master/MinimumBoundingBox.py"""
+"""
+from https://bitbucket.org/william_rusnack/minimumboundingbox/src/master/MinimumBoundingBox.py
+Compute the minimum bounding box given a set of 2D points
+"""
 from scipy.spatial import ConvexHull
 from math import sqrt
 import numpy as np

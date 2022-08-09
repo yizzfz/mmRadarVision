@@ -1,4 +1,3 @@
-"""Plot range information at zero doppler, debugging purpose only"""
 from .vis_base import Visualizer_Base
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,6 +17,7 @@ fft_distance = fft_freq_d*speedOfLight/(2*slope)
 # The points represent the sum of log2 magnitudes of received antennas expressed in Q9 format.
 
 class Visualizer_Range_Profile(Visualizer_Base):
+    """Plot range information at zero doppler, debugging purpose only"""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.fm:

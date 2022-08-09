@@ -24,6 +24,7 @@ class Visualizer_TwoR(Visualizer_Base):
         self.ff = Frame()
 
     def create_fig(self):
+        # create a 2D x-y figure and a 3D figure
         fig0 = plt.figure(0)
         ax0 = fig0.add_subplot(121)
         ax1 = fig0.add_subplot(122, projection='3d')
@@ -31,25 +32,26 @@ class Visualizer_TwoR(Visualizer_Base):
         ls0, = ax0.plot([], [], 'r.')   # r for redn
         ls1, = ax0.plot([], [], 'bx')   # b for blue
 
+        # plot the room layout as in the paper
         ax0.plot([-d_hor, 0], [0, d_ver], 'k')  # k for black
         ax0.plot([0, d_hor], [d_ver, 0], 'k')
         ax0.plot([0, d_hor], [-d_ver, 0], 'k')
         ax0.plot([0], [0], 'g+')
-
 
         ax0.set_xlim(self.xlim)
         ax0.set_ylim(self.ylim)
         ax0.set_xlabel('range (m)')
         ax0.set_ylabel('range (m)')
 
+        # plot the location of the two radars
         radar1 = plt.Circle((0, d_ver), 0.05, color='r')
         radar2 = plt.Circle((d_hor, 0), 0.05, color='b')
         ax0.add_artist(radar1)
         ax0.add_artist(radar2)
 
+        # plot the room layout and radar location in 3D
         ax1.scatter([0], [d_ver], [self.height[0]], color='r', s=30)
         ax1.scatter([d_hor], [0], [self.height[1]], color='b', s=30)
-
         ax1.plot([0, 0], [d_ver, d_ver], [0, self.height[0]], color='r')
         ax1.plot([d_hor, d_hor], [0, 0], [0, self.height[1]], color='b')
         ax1.set_xlim(self.xlim)
@@ -71,32 +73,31 @@ class Visualizer_TwoR(Visualizer_Base):
     def plot_each(self, idx, frame, runflag):
         if frame is None:
             return
-        if idx == 0:
+        if idx == 0:    # radar 1
             xs1, ys1, zs1 = np.squeeze(np.split(frame.T, 3))
+            # transform the points to have the same coordinate system
             res = rotate_and_translate(xs1, ys1, zs1, R1, T1)
             xs3, ys3, zs3 = np.squeeze(np.split(res, 3))
-            
-            if self.plot_mode == 'full':
+            if self.plot_mode == 'full':    # plot all points
                 self.ls0.set_xdata(xs3)
                 self.ls0.set_ydata(ys3)
+            # DBSCAN clsutering the points
             self.clusters1 = cluster_xyz(xs3, ys3, zs3)
-        elif idx == 1:
+        elif idx == 1:  # radar 2
             xs2, ys2, zs2 = np.squeeze(np.split(frame.T, 3))
             res = rotate_and_translate(xs2, ys2, zs2, R2, T2)
             xs4, ys4, zs4 = np.squeeze(np.split(res, 3))
-
             if self.plot_mode == 'full':
                 self.ls1.set_xdata(xs4)
                 self.ls1.set_ydata(ys4)
             self.clusters2 = cluster_xyz(xs4, ys4, zs4)
-            self.ps2 = xs4, ys4, zs4
         else:
             print('Error: Using more than two queues, but visualizer designed for two')
             runflag.value = 0
 
     def plot_combined(self, frame, runflag):
         show3dpoints = self.show3dpoints
-        if show3dpoints:
+        if show3dpoints:        # plot all points in 3D
             self.ax1.cla()
             self.ax1.scatter([0], [d_ver], [self.height[0]], color='r', s=30)
             self.ax1.scatter([d_hor], [0], [self.height[1]], color='b', s=30)
@@ -110,29 +111,30 @@ class Visualizer_TwoR(Visualizer_Base):
             self.ax1.set_ylabel('range (m)')
             self.ax1.set_zlabel('height (m)')
 
-        for e in self.ellipses_all:
+        for e in self.ellipses_all:     # remove old ellipses
             e.remove()
 
-        for c in self.cube_drawing:
+        for c in self.cube_drawing:     # remove old cubes
             c.remove()
         self.ellipses_all = []
         cubes = []
+        # loop through all pairs of cubes from two radars
         for c1 in self.clusters1:
             for c2 in self.clusters2:
-                if c1.close_to(c2):
+                if c1.close_to(c2):     # if the two cubes are close, that is a valid detection
                     cube = create_cube_from_two_clusters(c1, c2)
                     cubes.append(cube)
-                    if self.plot_mode == 'full':
+                    if self.plot_mode == 'full':    # plot rectangle
                         art = cube.get_bounding_box(color='green')
-                    if self.plot_mode == 'simple':
+                    if self.plot_mode == 'simple':  # plot centroid only
                         cen = cube.get_centroid_xy()
                         art = plt.Circle(cen, 0.1, color='green')
                     self.ellipses_all.append(art)
                     self.ax0.add_artist(art)
 
-        self.ff.update(cubes)
+        self.ff.update(cubes)           # update the scene
         self.cube_drawing = self.ff.get_drawings()
-        for c in self.cube_drawing:
+        for c in self.cube_drawing:     # draw the detection
             self.ax1.add_collection3d(c)
         objs = self.ff.get_objs()
         cens = [obj.get_centroid_xy() for obj in objs]
@@ -170,6 +172,7 @@ class Visualizer_TwoR_Tracker(Visualizer_TwoR):
         super().__init__(*args, **kwargs)
 
     def create_fig(self):
+        # same as Visualizer_TwoR, only 2D plot
         fig0 = plt.figure(0)
         ax0 = fig0.add_subplot(111)
 
@@ -199,6 +202,7 @@ class Visualizer_TwoR_Tracker(Visualizer_TwoR):
         plt.show()
 
     def plot_combined(self, frame, runflag):
+        # plot the trace of the detected object
         cubes = []
         for c1 in self.clusters1:
             for c2 in self.clusters2:

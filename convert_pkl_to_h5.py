@@ -1,3 +1,4 @@
+"""Convert pkl data from demo_dca1000.py to h5 data"""
 import pickle
 import numpy as np
 import h5py

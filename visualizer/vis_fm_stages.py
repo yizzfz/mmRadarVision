@@ -1,11 +1,10 @@
-"""Plot data at each stage of FM, debugging purpose only"""
 import matplotlib.pyplot as plt
 import numpy as np
 import traceback
 
 class Visualizer_Single_FM_Stages():
+    """Plot data at each stage of FM, debugging purpose only"""
     def __init__(self, queues, fm=None, xlim=[-2, 2], ylim=[0, 4], zlim=[0, 2], n_row=1, n_col=2):
-        print('Warning: Non-standard visualizer')
         self.queues = queues
         self.xlim = xlim
         self.ylim = ylim

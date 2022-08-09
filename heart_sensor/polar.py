@@ -14,6 +14,7 @@ HR measurement Ref: https://github.com/oesmith/gatt-xml/blob/master/org.bluetoot
 """
 
 class Polar:
+    """Connect a Polar heart rate sensor as a peripheral"""
     FUNCTIONS = {
         'ECG': 0, 
         'PPG': 1, 
@@ -42,13 +43,19 @@ class Polar:
     """
     ECG_WRITE = bytearray([0x02, 0x00, 0x00, 0x01, 0x82, 0x00, 0x01, 0x01, 0x0E, 0x00])
 
-    def __init__(self, addr, task=None, data_only=False):
+    def __init__(self, addr, task=None, visualize=True):
+        """
+        Parameters:
+            addr: MAC address of the device.
+            task: "hr" for measuring heart rate, "ecg" for measuring ECG, or None.
+            visualize: plot result in real-time or not.
+        """
         self.addr = addr
         self.fig = None
         self.sys_start_time = None
         self.sensor_start_time = None
         self.data = None
-        self.data_only = data_only
+        self.visualize = visualize
         t = threading.Thread(target=self._run, args=(task, ))
         t.daemon = True
         t.start()
@@ -64,30 +71,35 @@ class Polar:
         return self.data
 
     def cb_simple(self, sender, data):
+        """Simple callback function to print the message"""
         print(' '.join('{:02x}'.format(x) for x in data))
 
     def cb_hrm(self, sender, data):
+        """callback function to extract the heart rate from the message"""
         flag = data[0]  # 0x10 if has RR-interval, 0x00 otherwise
-        bpm = data[1]
+        bpm = data[1]   # bpm
         self.data = bpm
-        if self.data_only:
+        if not self.visualize:
             return
-        data = data[2:]
+        data = data[2:] # RR interval
         has_rr = flag & 0x10
-        if has_rr:
+        if has_rr:      # extract RR intervals and print the average
             n = int(len(data)/2)
             rrs = struct.unpack(f'<{n}H', data)
             rrs = np.array(rrs)/1024
             print(f'bpm: {bpm}, RR-interval (seconds): {rrs}, ref {1/np.mean(rrs)*60:.2f}')
-        else:
+        else:           # bpm only
             print(f'bpm: {bpm}')
     
     def cb_ecg(self, sender, data):
+        """callback function to extract the ECG from the message"""
+        # ignore the headers
         tasktype = data[0]
         frametype = data[9]
         data = data[10:]
         assert len(data) % 3 == 0
-        nd = int(len(data)/3)
+        nd = int(len(data)/3)   # number of data
+        # convert data into the right format
         s1 = data.hex()
         s2 =  '00' + '00'.join([s1[i:i+6] for i in range(0, len(s1), 6)])
         s3 = bytes.fromhex(s2)
@@ -95,7 +107,7 @@ class Polar:
         d1 = np.array(d1)
         d1 = np.right_shift(d1, 8)
         self.data = d1
-        if self.data_only:
+        if not self.visualize:
             return
             
         timestamp = struct.unpack('<Q', data[1:9])[0]/1e3   # in microseconds
@@ -117,6 +129,7 @@ class Polar:
     
 
     async def get_services(self, client):
+        """Get supported service"""
         svcs = await client.get_services()
         print("Services:")
         for service in svcs:
@@ -133,6 +146,7 @@ class Polar:
         # 0000feee-0000-1000-8000-00805f9b34fb (Handle: 76): Polar Electro Oy
 
     async def get_info(self, client):
+        """Get device information"""
         device_name = await client.read_gatt_char(self.MODEL_NBR_UUID)
         print("Device Name:", device_name.decode())
 
@@ -146,6 +160,7 @@ class Polar:
         print("Battery Level:", battery_level[0])
 
     async def get_features(self, client):
+        """Check which functions are supported"""
         res = await client.read_gatt_char(self.PMD_CONTROL)
         assert res[0] == 15     # should always be 0x0f
         for k in self.FUNCTIONS:
@@ -153,6 +168,7 @@ class Polar:
                 print('Support', k)
 
     async def get_settings(self, client, func='ECG'):
+        """Get device streaming setting"""
         def read_settings(sender, data):
             SETTINGS = ['sample rate', 'resolution', 'range']
             assert data[0] == 0xF0 and data[1] == 0x01      # should always be these
@@ -174,6 +190,7 @@ class Polar:
         # await client.start_notify(PMD_CONTROL, read_notification)
 
     async def start_streaming(self, client, cmd):
+        """Start streaming"""
         def read_response(sender, data):
             assert data[0] == 0xF0 and data[1] == 0x02      # should always be these
             if data[3] != 0:
@@ -188,6 +205,7 @@ class Polar:
             await asyncio.sleep(0.01)
 
     async def run_ecg(self):
+        """Start streaming ECG data"""
         try:
             async with BleakClient(self.addr) as client:
                 if not client.is_connected:        
@@ -202,6 +220,7 @@ class Polar:
             print(e)
 
     async def run_hr(self):
+        """Start streaming heart rate data"""
         try:
             self.log(f'Connecting to {self.addr}')
             async with BleakClient(self.addr) as client:
@@ -225,8 +244,8 @@ class Polar:
 
 if __name__ == '__main__':
     ## This is the device MAC ID, please update with your device ID
-    h10 = Polar("c1:02:a3:7c:57:42", task='hr', data_only=True)
-    pvs = Polar("a0:9e:1a:ad:ee:48", task='hr', data_only=True)
+    h10 = Polar("c1:02:a3:7c:57:42", task='hr', visualize=False)
+    pvs = Polar("a0:9e:1a:ad:ee:48", task='hr', visualize=False)
     # asyncio.run(h10.run_hr())
 
     hr1 = np.zeros((60))

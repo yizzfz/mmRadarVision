@@ -13,11 +13,13 @@ from scipy import stats
 
 
 class Visualizer_TwoR_Vertical(Visualizer_Base):
+    """Designed for two radars placed vertically"""
     def __init__(self, *args, plot_all_points=True, **kwargs):
         super().__init__(*args, **kwargs)
         self.plot_all_points = plot_all_points
 
     def create_fig(self):
+        # create a x-y plot and a x-z plot
         fig0 = plt.figure(0)
         ax0 = fig0.add_subplot(121)
         ax1 = fig0.add_subplot(122)
@@ -32,6 +34,7 @@ class Visualizer_TwoR_Vertical(Visualizer_Base):
         ax1.set_xlabel('x (m)')
         ax1.set_ylabel('height (m)')
 
+        # plot the location of the radar
         radar1 = plt.Circle((0 - d_hor/2, 0), 0.05, color='r')
         radar2 = plt.Circle((0 + d_hor/2, 0), 0.05, color='b')
         ax0.add_artist(radar1)
@@ -51,7 +54,7 @@ class Visualizer_TwoR_Vertical(Visualizer_Base):
     def plot_each(self, idx, frame, runflag):
         if frame is None:
             return
-        if idx == 0:
+        if idx == 0:    # radar 1
             xs1, ys1, zs1 = np.split(frame.T, 3)
             xs1 = xs1.flatten()
             ys1 = ys1.flatten()
@@ -63,7 +66,7 @@ class Visualizer_TwoR_Vertical(Visualizer_Base):
                 self.ls1a.set_ydata(zs1)
             self.clusters1 = cluster_xyz(xs1, ys1, zs1)
             self.ps1 = xs1, ys1, zs1
-        elif idx == 1:
+        elif idx == 1:  # radar 2
             xs2, ys2, zs2 = np.split(frame.T, 3)
             xs2 = xs2.flatten()
             ys2 = ys2.flatten()
@@ -80,6 +83,7 @@ class Visualizer_TwoR_Vertical(Visualizer_Base):
             runflag.value = 0
 
     def plot_combined(self, frame, runflag):
+        # do nothing
         keyPressed = plt.waitforbuttonpress(timeout=0.005)
         if keyPressed:
             runflag.value = 0
