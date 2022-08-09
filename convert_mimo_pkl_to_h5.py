@@ -2,9 +2,6 @@
 import pickle
 import numpy as np
 import h5py
-fft_freq = np.fft.fftfreq(6000, d=1.0/9e6)
-fft_freq_d = fft_freq*3e8/2/21e12
-max_freq_i = np.argmax(fft_freq_d > 3)
 
 def convert_raw_to_raw(filename):
     print('loading', filename)
@@ -19,7 +16,7 @@ def convert_raw_to_raw(filename):
     raw = np.asarray(raw)
     gts = np.asarray(gts)
 
-    # discard data at begining
+    # discard data at begining and end
     start = np.argmax(gts != None) + 5
     samples = raw.shape[3]
     n_chirp = raw.shape[2]

@@ -2,7 +2,7 @@
 Radar name, port (application/user and data), and config file path
 """
 RADAR_CFG = [
-    ('1843', 'COM4', 'COM3', './radar_cfgs/1843.cfg'),
+    ('1843', 'COM14', 'COM13', './radar_cfgs/1843.cfg'),
     ('1843', 'COM4', 'COM3', './radar_cfgs/1843_raw.cfg'),
 ]
 
@@ -22,7 +22,7 @@ radar_height1 = 1.5     # height of first radar
 radar_height2 = 1.5     # height of second radar
 d_hor = 1.3             # vertical distance between two radars
 d_ver = 1.4             # horizontal distance between two radars
-T1 = [0, d_ver, radar_height1]  
-T2 = [d_hor, 0, radar_height2]
-R1 = R.from_euler('z', 180, degrees=True).as_matrix()
-R2 = R.from_euler('z', -90, degrees=True).as_matrix()
+T1 = [0, d_ver, radar_height1]      # translation vector of the first radar
+T2 = [d_hor, 0, radar_height2]      # translation vector of the second radar
+R1 = R.from_euler('z', 180, degrees=True).as_matrix()   # rotation matrix of the first radar
+R2 = R.from_euler('z', -90, degrees=True).as_matrix()   # rotation matrix of the second radar

@@ -6,6 +6,7 @@ out_dim = [60, 30, 60]
 step = 0.01
 
 def parse_radarcfg(radarcfg):
+    """Parse the key parameters in the radar configuration file"""
     with open(radarcfg, 'r') as f:
         cfg = f.readlines()
     for line in cfg:
@@ -40,8 +41,15 @@ def parse_radarcfg(radarcfg):
     }
     return config
 
-# input (n, 3), output [(n,3), ...]
 def cluster_DBSCAN(data, min_points=5, eps=0.1, ret_centroids=False):
+    """DBSCAN algorithm, input (n, 3), output [(n,3), ...]
+
+    Parameters:
+        data: (n, 3) point cloud.
+        min_points: the minimal number of points in a cluster.
+        eps: the maximum distance between points in the same cluster.
+        ret_centroids: return the centroids of the clsuters along with the clusters
+    """
     assert(len(data.shape)==2 and data.shape[1]==3)
     if not data.any() or data.shape[0] < 10:
         return None
@@ -64,6 +72,7 @@ def cluster_DBSCAN(data, min_points=5, eps=0.1, ret_centroids=False):
     return clusters
 
 def frame_to_mat(frame, out_dim=out_dim, step=step, ret_centroids=False):
+    """Clsuter and voxelize a point cloud into a dense matrix"""
     res = []
     if ret_centroids:
         clusters, centroids = cluster_DBSCAN(frame, ret_centroids=ret_centroids)
@@ -80,8 +89,8 @@ def frame_to_mat(frame, out_dim=out_dim, step=step, ret_centroids=False):
         return res, centroids
     return res
 
-
 def obj_to_mat(obj, out_dim=out_dim, step=step):
+    """Voxelize a point cloud into a dense matrix"""
     obj = np.round(obj, 2)
     obj = obj - np.min(obj, axis=0)
     obj = np.asarray(obj/step, dtype=np.uint8)
