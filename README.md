@@ -3,7 +3,7 @@
 This project uses mmWave radars for some computer vision tasks. It supports real-time data streaming, processing and visualization from a Texas Instruments (TI) mmWave radar board to a PC. 
 It can be used for either point cloud data (with the TI out-of-box demo firmware) or raw data (with the TI DCA1000EVM board and an appropriate firmware).
 
-## Installation 
+## Prerequisite 
 
 Install Python (tested with 3.9) and install dependencies with ```pip install -r requirement.txt```.
 
