@@ -28,3 +28,18 @@ This ensures that the radar board and the DCA1000EVM are working properly with t
 3. Configure the IP of Ethernet adaptor to static: 192.168.33.30.
 4. Modify demo_dca1000.py to select radar.
 4. Run ```python demo_dca1000.py```.
+
+## Citation
+
+If you find this work useful, please consider cite:
+```
+@article{Cui21,
+  author={Cui, Han and Dahnoun, Naim},
+  journal={IEEE Aerospace and Electronic Systems Magazine}, 
+  title={High Precision Human Detection and Tracking Using Millimeter-Wave Radars}, 
+  year={2021},
+  volume={36},
+  number={1},
+  pages={22-32},
+  doi={10.1109/MAES.2020.3021322}}
+```
