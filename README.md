@@ -10,7 +10,7 @@ Install Python (tested with 3.9) and install dependencies with ```pip install -r
 ## To collect point cloud data
 
 This project allows point cloud capturing from the radar.
-Before running this project, it is strongly rerecommeded to test the hardware setup using the TI mmWave Demo Visualizer ([Instruction](https://www.ti.com/lit/ug/swru587/swru587.pdf)). 
+Before running this project, it is strongly recommended to test the hardware setup using the TI mmWave Demo Visualizer ([Instruction](https://www.ti.com/lit/ug/swru587/swru587.pdf)). 
 This ensures that the radar board is working properly with the correct firmware, and the drivers are installed. 
 1. Check device manager to find the COM port (User & Data) of the radar. 
 2. Modify config.py to specify the COM port and radar location. 
@@ -21,7 +21,7 @@ This ensures that the radar board is working properly with the correct firmware,
 
 This project allows raw data capturing from the radar using the TI DCA1000EVM board, bypassing the mmWave studio software. 
 The backend of this project uses a modified version of the TI DCA1000CLI tool.
-Before running this project, it is strongly rerecommeded to test the hardware setup using the TI mmWave studio ([Instruction](https://www.ti.com/lit/ml/spruik7/spruik7.pdf)).
+Before running this project, it is strongly recommended to test the hardware setup using the TI mmWave studio ([Instruction](https://www.ti.com/lit/ml/spruik7/spruik7.pdf)).
 This ensures that the radar board and the DCA1000EVM are working properly with the correct firmware, and the drivers are installed. 
 1. Check device manager to find the COM port (User & Data) of the radar. 
 2. Modify config.py to specify the COM port. 
