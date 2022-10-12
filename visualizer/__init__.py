@@ -1,6 +1,6 @@
 from .vis_base import Visualizer_Base
 from .vis import Visualizer_AE
-from .vis_2r import Visualizer_TwoR
+from .vis_2r import Visualizer_TwoR, Visualizer_TwoR_2D
 from .vis_raw import Visualizer_Raw
 
 # The following are here mostly for reference

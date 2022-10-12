@@ -6,6 +6,8 @@ import datetime
 import pickle
 from .util_visualizer import *
 from .vis_base import Visualizer_Base
+from scipy.spatial.transform import Rotation as R
+
 
 class Visualizer_TwoR(Visualizer_Base):
     """Display points from two radars"""
@@ -76,21 +78,21 @@ class Visualizer_TwoR(Visualizer_Base):
         if idx == 0:    # radar 1
             xs1, ys1, zs1 = np.squeeze(np.split(frame.T, 3))
             # transform the points to have the same coordinate system
-            res = rotate_and_translate(xs1, ys1, zs1, R1, T1)
-            xs3, ys3, zs3 = np.squeeze(np.split(res, 3))
+            # res = rotate_and_translate(xs1, ys1, zs1, R1, T1)
+            # xs3, ys3, zs3 = np.squeeze(np.split(res, 3))
             if self.plot_mode == 'full':    # plot all points
-                self.ls0.set_xdata(xs3)
-                self.ls0.set_ydata(ys3)
+                self.ls0.set_xdata(xs1)
+                self.ls0.set_ydata(ys1)
             # DBSCAN clsutering the points
-            self.clusters1 = cluster_xyz(xs3, ys3, zs3)
+            self.clusters1 = cluster_xyz(xs1, ys1, zs1)
         elif idx == 1:  # radar 2
             xs2, ys2, zs2 = np.squeeze(np.split(frame.T, 3))
-            res = rotate_and_translate(xs2, ys2, zs2, R2, T2)
-            xs4, ys4, zs4 = np.squeeze(np.split(res, 3))
+            # res = rotate_and_translate(xs2, ys2, zs2, R2, T2)
+            # xs4, ys4, zs4 = np.squeeze(np.split(res, 3))
             if self.plot_mode == 'full':
-                self.ls1.set_xdata(xs4)
-                self.ls1.set_ydata(ys4)
-            self.clusters2 = cluster_xyz(xs4, ys4, zs4)
+                self.ls1.set_xdata(xs2)
+                self.ls1.set_ydata(ys2)
+            self.clusters2 = cluster_xyz(xs2, ys2, zs2)
         else:
             print('Error: Using more than two queues, but visualizer designed for two')
             runflag.value = 0
@@ -225,6 +227,100 @@ class Visualizer_TwoR_Tracker(Visualizer_TwoR):
             self.ls1.set_xdata(history[:, 0])
             self.ls1.set_ydata(history[:, 1])
         
+        keyPressed = plt.waitforbuttonpress(timeout=0.005)
+        if keyPressed:
+            runflag.value = 0
+
+class Visualizer_TwoR_2D(Visualizer_TwoR):
+    def create_fig(self):
+        # create a 2D x-y figure and a 3D figure
+        fig0 = plt.figure(0)
+        ax0 = fig0.add_subplot(111)
+
+        ls0, = ax0.plot([], [], 'r.')   # r for red
+        ls1, = ax0.plot([], [], 'bx')   # b for blue
+
+        # plot the radar layout
+        radar_location = [r[-1] for r in self.radars]
+        radar_direction = [r[-2] for r in self.radars]
+        r1, r2 = radar_location
+        rm1 = R.from_euler('xyz', radar_direction[0], degrees=True).as_matrix()
+        rm2 = R.from_euler('xyz', radar_direction[1], degrees=True).as_matrix()
+        ax0.plot([0], [0], 'g+')
+
+        ax0.set_xlim(self.xlim)
+        ax0.set_ylim(self.ylim)
+        ax0.set_xlabel('range (m)')
+        ax0.set_ylabel('range (m)')
+
+        # plot the location of the two radars
+        radar1 = plt.Circle((r1[:2]), 0.05, color='r', label='Radar 1')
+        radar2 = plt.Circle((r2[:2]), 0.05, color='b', label='Radar 2')
+        ax0.add_artist(radar1)
+        ax0.add_artist(radar2)
+        ax0.legend(loc='upper left')
+
+        # 60 degree fov
+        left = np.asarray([[-1, 0.58, 0]])*0.3
+        right = np.asarray([[1, 0.58, 0]])*0.3
+        left1 = (left @ rm1 + r1)[0]
+        right1 = (right @ rm1 + r1)[0]
+        left2 = (left @ rm2 + r2)[0]
+        right2 = (right @ rm2 + r2)[0]
+        print(left, right)
+        print(r1, left1, right1, radar_direction[0])
+        print(r2, left2, right2, radar_direction[1])
+        plt.plot([r1[0], left1[0]], [r1[1], left1[1]], 'k--')
+        plt.plot([r1[0], right1[0]], [r1[1], right1[1]], 'k--')
+        plt.plot([r2[0], left2[0]], [r2[1], left2[1]], 'k--')
+        plt.plot([r2[0], right2[0]], [r2[1], right2[1]], 'k--')
+
+        self.ax0 = ax0
+        self.ls0 = ls0
+        self.ls1 = ls1
+
+        plt.ion()
+        plt.show()
+
+    def plot_combined(self, frame, runflag):
+        for e in self.ellipses_all:     # remove old ellipses
+            e.remove()
+        self.ellipses_all = []
+        cubes = []
+        # loop through all pairs of cubes from two radars
+        for c1 in self.clusters1:
+            for c2 in self.clusters2:
+                if c1.close_to(c2):     # if the two cubes are close, that is a valid detection
+                    cube = create_cube_from_two_clusters(c1, c2)
+                    cubes.append(cube)
+                    if self.plot_mode == 'full':    # plot rectangle
+                        art = cube.get_bounding_box(color='green')
+                    if self.plot_mode == 'simple':  # plot centroid only
+                        cen = cube.get_centroid_xy()
+                        art = plt.Circle(cen, 0.1, color='green')
+                    self.ellipses_all.append(art)
+                    self.ax0.add_artist(art)
+
+        self.ff.update(cubes)           # update the scene
+        objs = self.ff.get_objs()
+        cens = [obj.get_centroid_xy() for obj in objs]
+        if self.logger:
+            self.logger.update(cens, datatype='misc')
+
+        # dispaly all boxes?
+        # for c in self.clusters1:
+        #     # art = c.get_ellipse_artist(color='red')
+        #     art = c.get_bounding_box(color='red')
+        #     if art is not None:
+        #         self.ellipses_all.append(art)
+        #         self.ax0.add_artist(art)
+        # for c in self.clusters2:
+        #     # art = c.get_ellipse_artist(color='blue')
+        #     art = c.get_bounding_box(color='blue')
+        #     if art is not None:
+        #         self.ellipses_all.append(art)
+        #         self.ax0.add_artist(art)
+
         keyPressed = plt.waitforbuttonpress(timeout=0.005)
         if keyPressed:
             runflag.value = 0

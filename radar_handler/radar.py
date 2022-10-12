@@ -5,19 +5,24 @@ import struct
 import numpy as np
 import sys
 import warnings
+from scipy.spatial.transform import Rotation as R
 
 magic_word = b'\x02\x01\x04\x03\x06\x05\x08\x07'
 
 
 class Radar():
     """Connect to a mmWave radar."""
-    def __init__(self, name: str, cfg_port: int, data_port: int, runflag, studio_cli_image=False, debug=False, outformat='p', sdk=None):
+    def __init__(self, name: str, cfg_port: int, data_port: int, runflag, 
+                 rotation=(0,0,0), translation=(0,0,0),
+                 studio_cli_image=False, debug=False, outformat='p', sdk=None):
         """
         Parameters:
             name: str, '1443', '1642, '1843', etc.
             cfg_port: int, Application/User COM port.
             data_port: int, Data COM port.
             runflag: shared variable indicating the running status of the system.
+            rotation: tuple of 3 ints, the rotation angle (in degree) in each xyz direction.
+            translation: tuple of 3 floats, the translation distance in each xyz direction. 
             sdk: float, if a specific sdk version is used. Default None.
             outformat: 'p' for pointcloud, 'v' for velocity, 's' for snr, 'n' for noise, e.g. 'pvsn'. 
             studio_cli_image: bool, if the radar is loaded with a studio_cli image.
@@ -33,6 +38,8 @@ class Radar():
         self.debug = debug
         oldsdk = False
         self.side_info = False
+        self.RM = R.from_euler('xyz', rotation, degrees=True).as_matrix()
+        self.TM = np.asarray(translation)
         # default sdk for 1443 or 1642 is assumed to be v1.2
         if sdk is None:
             if '1443' in self.name or '1642' in self.name:
@@ -313,7 +320,9 @@ class Radar():
                 ys.append(y)
                 zs.append(z)
                 vs.append(v)
-        return np.stack((xs, ys, zs, vs), axis=1)
+        data = np.stack((xs, ys, zs, vs), axis=1)
+        data[:, :3] = self.rotate_translate(data[:, :3])
+        return data
 
 
     def parse_detected_objects_oldsdk(self, data, tlvLength):
@@ -361,7 +370,9 @@ class Radar():
                 ranges.append(rangeIdx)
 
         # xs, ys, zs, dopplers, ranges, peaks
-        return np.stack((xs, ys, zs), axis=1)
+        data = np.stack((xs, ys, zs), axis=1)
+        data = self.rotate_translate(data)
+        return data
 
     def outformat_mask(self, outformat):
         """Mask output matrix based on configured data format"""
@@ -375,6 +386,12 @@ class Radar():
         if 'n' in outformat:
             m.append(5)
         return m
+
+    def rotate_translate(self, x):
+        if x.size == 0:
+            return x
+        x = x @ self.RM + self.TM
+        return x
 
     def exit(self):
         self.cfg_port.close()

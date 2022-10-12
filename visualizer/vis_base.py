@@ -8,12 +8,14 @@ class Visualizer_Base():
     """Base class of a Visualizer. 
     """
     def __init__(self, queues, fm=[], xlim=[-2, 2], ylim=[0, 4], zlim=[-1, 1], 
+                 radars=None,
                  logger=None, height=[], cam=None, heart_sensor=None, plotaxes=(0, 1, 2)):
         """
         Parameters:
             queues: list of data queues for the radars.
             fm: list of frame managers for the radars.
             xlim/ylim/zlim: field of view.
+            radars: radar configuration that may sometimes help.
             logger: the logging module.
             height: list of height of the radars.
             cam: the camera module.
@@ -25,6 +27,7 @@ class Visualizer_Base():
         self.xlim = xlim
         self.ylim = ylim
         self.zlim = zlim
+        self.radars = radars
         self.plotaxes = plotaxes
         if fm == []:        # should be a list of list of frame managers
             self.fm = [[] for _ in range(self.n_radars)]
