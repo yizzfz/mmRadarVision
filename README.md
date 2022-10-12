@@ -10,8 +10,9 @@ Install Python (tested with 3.9) and install dependencies with ```pip install -r
 ## To collect point cloud data
 
 This project allows point cloud capturing from the radar.
-Before running this project, it is strongly recommended to test the hardware setup using the TI mmWave Demo Visualizer ([Instruction](https://www.ti.com/lit/ug/swru587/swru587.pdf)). 
+Before running this project, it is strongly recommended to test the hardware setup using the TI mmWave Demo Visualizer ([Instruction](https://www.ti.com/lit/ug/swru587/swru587.pdf)).
 This ensures that the radar board is working properly with the correct firmware, and the drivers are installed. 
+Or install the [standalone xds110 driver](https://software-dl.ti.com/ccs/esd/documents/xdsdebugprobes/emu_xds_software_package_download.html).
 1. Check device manager to find the COM port (User & Data) of the radar. 
 2. Modify config.py to specify the COM port and radar location. 
 3. Modify demo.py to select radar (and order).
