@@ -27,8 +27,9 @@ This ensures that the radar board and the DCA1000EVM are working properly with t
 1. Check device manager to find the COM port (User & Data) of the radar. 
 2. Modify config.py to specify the COM port. 
 3. Configure the IP of Ethernet adaptor to static: 192.168.33.30.
-4. Modify demo_dca1000.py to select radar.
-4. Run ```python demo_dca1000.py```.
+4. Modify ```fileBasePath``` in dca1000/dca1000.json,
+5. Modify demo_dca1000.py to select radar.
+6. Run ```python demo_dca1000.py```.
 
 ## Citation
 
