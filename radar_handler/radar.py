@@ -14,7 +14,7 @@ class Radar():
     """Connect to a mmWave radar."""
     def __init__(self, name: str, cfg_port: int, data_port: int, runflag, 
                  rotation=(0,0,0), translation=(0,0,0),
-                 studio_cli_image=False, debug=False, outformat='p', sdk=None):
+                 studio_cli_image=False, debug=False, outformat='p', sdk=None, exit_on_fail=True):
         """
         Parameters:
             name: str, '1443', '1642, '1843', etc.
@@ -40,6 +40,7 @@ class Radar():
         self.side_info = False
         self.RM = R.from_euler('xyz', rotation, degrees=True).as_matrix()
         self.TM = np.asarray(translation)
+        self.exit_on_fail = exit_on_fail
         # default sdk for 1443 or 1642 is assumed to be v1.2
         if sdk is None:
             if '1443' in self.name or '1642' in self.name:
@@ -73,7 +74,8 @@ class Radar():
             data_port.set_buffer_size(rx_size=128000)
         except serial.serialutil.SerialException:
             self.log('Failed opening serial port, check connection')
-            self.runflag.value = 0
+            if self.exit_on_fail:
+                self.runflag.value = 0
             return False
 
         assert cfg_port.is_open and data_port.is_open
@@ -98,7 +100,8 @@ class Radar():
                 if 'error' in full_message.lower():
                     self.log('cfg error')
                     self.log(full_message)
-                    self.runflag.value = 0
+                    if self.exit_on_fail:
+                        self.runflag.value = 0
                     return False
 
             except UnicodeDecodeError as e:

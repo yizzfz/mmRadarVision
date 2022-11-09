@@ -8,7 +8,7 @@ class Visualizer_Base():
     """Base class of a Visualizer. 
     """
     def __init__(self, queues, fm=[], xlim=[-2, 2], ylim=[0, 4], zlim=[-1, 1], 
-                 radars=None,
+                 radars=None, data_channel=3,
                  logger=None, height=[], cam=None, heart_sensor=None, plotaxes=(0, 1, 2)):
         """
         Parameters:
@@ -16,6 +16,7 @@ class Visualizer_Base():
             fm: list of frame managers for the radars.
             xlim/ylim/zlim: field of view.
             radars: radar configuration that may sometimes help.
+            data_channel: point cloud = 3, velocity = 4, etc.
             logger: the logging module.
             height: list of height of the radars.
             cam: the camera module.
@@ -44,7 +45,7 @@ class Visualizer_Base():
             assert len(height) == self.n_radars and "Length of heights should be equal to number of radars"
             self.height = height
         # initialize the data matrix
-        self.frames = [np.empty((0, 3)) for _ in range(self.n_radars)]
+        self.frames = [np.empty((0, data_channel)) for _ in range(self.n_radars)]
 
     def run(self, runflag):
         """Start the visualizer."""

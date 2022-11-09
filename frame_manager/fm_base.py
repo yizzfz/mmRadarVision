@@ -4,7 +4,7 @@ from collections import deque
 class Frame_Manager_Base():
     """Base class of Frame Manager. 
     It stacks frames in temporal domain and filter points based on desired field of view."""
-    def __init__(self, max_length=10, xlim=None, ylim=None, zlim=None):
+    def __init__(self, max_length=1, xlim=None, ylim=None, zlim=None):
         """
         Parameters:
             max_length: number of frames to stack.

@@ -23,172 +23,86 @@ from shapely.geometry.point import Point
 from shapely import affinity
 from .MinimumBoundingBox import MinimumBoundingBox
 from util import cluster_DBSCAN
+from scipy.spatial import distance_matrix
+from scipy.optimize import linear_sum_assignment
 
 # some hyper parameters
 nstd = 2
-max_confidence = 20
-AoV = 45/180*np.pi
 
-class Frame:
+class FrameBase:
     """Class to represent a scene that contains a number of objects."""
     def __init__(self):
         self.obj_list = []
         return
 
-    def update(self, new_cubes):
-        """Update the list of objects in the frame"""
-        for i, c in enumerate(new_cubes):
-            found = False
-            for j, obj in enumerate(self.obj_list):
-                if obj.find_cube(c):
-                    found = True
-                    break
-
-            if not found:
-                self.obj_list.append(Obj(c))
-
-        for obj in self.obj_list:
-            obj.dec()
-
-        self.obj_list = [obj for obj in (self.obj_list) if obj.live()]
-        return
-
-    def update_with_filters(self, new_cubes, filters):
-        """Update the list of objects in the frame that satisfy some conditions"""
-        self.update(new_cubes)
-        for obj in self.obj_list:
-            radar = (0, d_ver)
-            centre = obj.centroid
-            angle = angle_to(centre, radar)
-            
-            base = obj.get_average_cube().base
-            leftmost = 4
-            rightmost = -4
-            for pts in base:
-                angle_c = angle_to(pts, radar)
-                leftmost = min(leftmost, angle_c)
-                rightmost = max(rightmost, angle_c)
-            region = rightmost - leftmost
-            found = False
-            
-            for left, right in filters:
-                if left <= angle <= right and region/(right-left) > 0.3:
-                    found = True
-                    break
-            obj.update_label(found)
+    def update(self):
+        raise NotImplementedError
 
     def get_objs(self):
         """Return live objects."""
-        return [obj for obj in self.obj_list if obj.confidence > 2]
+        return [obj for obj in self.obj_list if obj.live()]
     
     def get_drawings(self, ret_label=False):
         """Get drawings for each object in the scene."""
         if not ret_label:
-            return [obj.get_drawing() for obj in self.obj_list if obj.confidence > 2]
-
-        res = []
-        for obj in self.obj_list:
-            if obj.confidence <= 2:
-                continue
-            if obj.label >= 5:
-                label = 'True'
-            elif obj.label > 0:
-                label = 'Likely'
-            elif obj.label > -5:
-                label = 'Unlikely'
-            else:
-                label = 'False'
-            res.append((obj.get_drawing(), label, obj.centroid))
-
-        return res
-
-        # live_objs = [obj for obj in self.obj_list if obj.confidence > 2]
-        # res = []
-        # for obj in live_objs:
-        #     centre = obj.centroid
-        #     angle = angle_to(centre, (0, d_ver))
-
-        #     found = False
-        #     for left, right in filters:
-        #         if angle >= left and angle <= right:
-        #             if ret_label:
-        #                 res.append((obj.get_drawing(color='red'), 'True'))
-        #             else:
-        #                 res.append(obj.get_drawing(color='red'))
-        #             found = True
-        #             break
-        #     if not found:
-        #         if ret_label:
-        #             res.append((obj.get_drawing(color='blue'), 'False'))
-        #         else:
-        #             res.append(obj.get_drawing(color='blue'))
-        # return res
-
+            return [obj.get_drawing() for obj in self.obj_list if obj.live()]
+        return [(obj.get_drawing(), obj.confidence) for obj in self.obj_list if obj.live()]
 
     def debug(self):
         print('There are %d objs' % (len(self.obj_list)))
         for c in self.obj_list:
             c.debug()
 
+class Frame(FrameBase):
+    def update(self, new_cubes):
+        """Update the list of objects in the frame"""
+        cens1 = np.asarray([x.get_centroid_xy() for x in new_cubes])
+        cens2 = np.asarray([x.get_centroid_xy() for x in self.obj_list])
+        dm = None
+        if len(self.obj_list) > 0 and len(new_cubes) > 0:
+            dm = distance_matrix(cens1, cens2)
+        for i, cube in enumerate(new_cubes):
+            matched = False
+            if dm is not None:
+                j = np.argmin(dm[i])
+                if dm[i, j] < 1:
+                    self.obj_list[j].add_cube(cube)
+                    matched = True
+            if not matched:
+                self.obj_list.append(Obj(cube))
+
+        for obj in self.obj_list:
+            obj.dec()
+
+        self.obj_list = [obj for obj in (self.obj_list) if obj.confidence > 0]
+        return
 
 
 class Obj:
-    """Class to represent an object (a person). An object can have many candidate cubes."""
+    """Class to represent an object (a person)."""
     def __init__(self, cube):
-        self.cube_list = [cube]
         self.centroid = cube.get_centroid_xy()
         self.height = cube.height
-        self.heightL = self.height
         self.confidence = cube.confidence
         self.start_time = time.time()
         self.bases = [(cube.lenA, cube.lenB)]
         self.base_len = (0, 0)
-        self.mode = 'init'
-        self.label = 0
-        self.history = deque([], 50)
+        self.history = deque([cube], 500)
+        self.effective_history_len = 15
 
     def debug(self):
-        print('object has %d candidate cubes' % len(self.cube_list))
-        for c in self.cube_list:
-            print(c.confidence)
-
-    def update_label(self, found):
-        """Update the liveness of the object"""
-        if found:
-            self.label += 1
-        else:
-            self.label -= 1
-
-        self.label = max(self.label, -5)
-        self.label = min(self.label, 5)
-
-    def find_cube(self, cube):
-        """Check if a cube belongs to an object"""
-        for c in self.cube_list:
-            if c.close_to(cube):
-                c.inc(5)
-                return True
-
-        x1, y1 = self.centroid
-        x2, y2 = cube.get_centroid_xy()
-        if np.sqrt((x1-x2)**2 + (y1-y2)**2) < 0.5:
-            self.add_cube(cube)
-            return True
-        return False
+        print(f'object confidence {self.confidence}, has lived for {len(self.history)} frames')
+        # for c in self.history:
+        #     print(c.get_centroid_xy())
     
     def add_cube(self, cube):
         """Add a cube to an object"""
-        cube.inc(5)
-        self.cube_list.append(cube)
+        self.history.append(cube)
         self.update()
-
 
     def get_average_cube(self):
         """Get a cube that reprents the object"""
         cube_to_display = self.get_drawing_average()
-        if self.mode == 'init':
-            return cube_to_display
-
         vec1 = cube_to_display.vec1[0:2]
         vec2 = cube_to_display.vec2[0:2]
 
@@ -210,32 +124,27 @@ class Obj:
         p3 = c-vec1-vec2
         p4 = c-vec1+vec2
 
-        height = self.height if (self.height - self.heightL / self.heightL > 0.1) else self.heightL
+        height = self.height
         cube = Cube((p1, p2, p3, p4), height)
         return cube
 
-
     def get_centroid_xy(self):
-        cube = self.get_average_cube()
-        return cube.get_centroid_xy()
-        
+        return self.centroid
 
-    def get_drawing(self, color=None):
+    def get_height(self):
+        return self.height
+
+    def get_drawing(self, color='blue'):
         """Get a drawable cube"""
-        if color is None:
-            color = 'red' if self.label == 5 else 'black' if self.label == -5 else 'blue'
-
         cube = self.get_average_cube()
-        if self.mode == 'init':
-            return cube.get_drawing(height=self.height, color=color)
         return cube.get_drawing(color=color)
 
-        
     def get_drawing_max(self):
         """Get a drawable cube by looking for the maximum confidence"""
         lmax = 0
         cube_to_display = None
-        for c in self.cube_list:
+        history = list(self.history)[-self.effective_history_len:]
+        for c in history:
             if c.confidence > lmax:
                 cube_to_display = c
                 lmax = c.confidence
@@ -245,15 +154,13 @@ class Obj:
 
     def get_drawing_first(self):
         """Get a drawable cube (the first cube)"""
-        return self.cube_list[0]
+        return self.history[0]
 
     def get_drawing_average(self):
         """Get a drawable cube that is the average of all cubes"""
-        cubes = [c for c in self.cube_list if c.confidence > 5]
-        if len(cubes) < 2:
-            return self.get_drawing_max()
         pts = []
-        for c in cubes:
+        history = history = list(self.history)[-self.effective_history_len:]
+        for c in history:
             pts += c.base
         bb = MinimumBoundingBox(pts)
         cp = bb.corner_points
@@ -263,59 +170,35 @@ class Obj:
         avg = Cube(cp, self.height)
         return avg
 
-
     def dec(self):
-        """Decrease the liveness of all cubes after one frame"""
-        for c in self.cube_list:
-            c.dec()
-        self.cube_list = [c for c in self.cube_list if c.confidence>0]
+        """Decrease the liveness"""
+        self.confidence -= 1
 
     def live(self):
-        """The object is live if at least one cube is live"""
-        for c in self.cube_list:
-            if c.confidence > 0:
-                return True
-        return False
+        return self.confidence > 10000 or len(self.history) > 125
 
     def update(self):
         """Update the object each frame"""
-        self.cube_list = [c for c in self.cube_list if c.confidence > 0]
-        cs = [c.get_centroid_xy() for c in self.cube_list]
-        hs = [c.height for c in self.cube_list]
-        weight = [c.confidence for c in self.cube_list]
+        history = list(self.history)[-self.effective_history_len:]
+        cs = [c.get_centroid_xy() for c in history]
+        hs = [c.height for c in history]
+        weight = [c.confidence for c in history]
         x, y = np.average(np.asarray(cs), weights=weight, axis=0)
         h = np.average(np.asarray(hs), weights=weight, axis=0)
         self.centroid = x, y
         self.height = h
-        self.confidence = sum([c.confidence for c in self.cube_list])
-
-        if self.mode == 'init':
-            self.bases += [(c.lenA, c.lenB) for c in self.cube_list]
-            if time.time()-self.start_time > 5:
-                self.mode = 'run'
-                print('Learned an object')
-                self.heightL = self.height
-
-        if self.mode == 'run':
-            self.base_len = stats.trim_mean(self.bases, 0.1)
-        self.history.append(self.centroid)
+        self.confidence = sum([c.confidence for c in self.history])
+        self.bases = [(c.lenA, c.lenB) for c in self.history]    
+        self.base_len = stats.trim_mean(self.bases, 0.1)
 
     def get_history(self):
-        return self.history
+        return [x.get_centroid_xy() for x in self.history]
 
 
 
 class Cube:
     """A cube that represents an object and can be drawn."""
-    # def __init__(self, origin, vec1, vec2, height):
-    #     self.o = origin
-    #     self.vec1 = vec1
-    #     self.vec2 = vec2
-    #     self.vec3 = np.asarray((0, 0, height))
-    #     self.height = height
-    #     self.confidence = 2
-
-    def __init__(self, base, height):
+    def __init__(self, base, height, confidence=2):
         self.base = base
         p1, p2, p3, p4 = base
         side_length = [math.hypot(p2[0]-p1[0], p2[1]-p1[1]), math.hypot(p3[0]-p2[0], p3[1]-p2[1])]
@@ -327,11 +210,10 @@ class Cube:
         self.vec2 = np.asarray((p3[0]-p2[0], p3[1]-p2[1], 0))
         self.vec3 = np.asarray((0, 0, height))
         self.height = height
-        self.confidence = 2
+        self.confidence = confidence
 
-    # def get_base_ratio(self):
-    #     return self.xlen/self.ylen
-
+    def is_valid(self):
+        return self.lenA < 2 and self.lenB < 2 and self.height < 3
 
     def get_drawing(self, color='blue', height=None):
         """Get a drawable cube"""
@@ -358,37 +240,6 @@ class Cube:
     def get_bounding_box(self, color):
         return Polygon(self.base, alpha=0.5, color=color)
 
-
-    # def get_bound(self):
-    #     xmin, ymin, zmin = self.o
-    #     xmax = xmin + self.xlen
-    #     ymax = ymin + self.ylen
-    #     zmax = zmin + self.zlen
-    #     return xmin, xmax, ymin, ymax, zmin, zmax
-
-    # def update(self, cube_B):
-    #     xmin1, xmax1, ymin1, ymax1, zmin1, zmax1 = self.get_bound()
-    #     xmin2, xmax2, ymin2, ymax2, zmin2, zmax2 = cube_B.get_bound()
-
-    #     new_bound = np.asarray((min(xmin1, xmin2), max(xmax1, xmax2), 
-    #                        min(ymin1, ymin2), max(ymax1, ymax2),
-    #                        min(zmin1, zmin2), max(zmax1, zmax2)))
-
-    #     self.xlen, self.ylen, self.zlen = new_bound[1::2]-new_bound[0::2]
-    #     self.o = new_bound[0::2]
-
-    def inc(self, val=1):
-        """Increase the liveness of the cube"""
-        self.confidence += val
-        self.confidence = min(self.confidence, max_confidence)
-
-    def dec(self, val=1):
-        """Decrease the liveness of the cube"""
-        self.confidence -= val
-
-    def live(self):
-        return self.confidence > 0
-
     def get_area(self):
         x = self.vec1[0]**2 + self.vec1[1]**2
         y = self.vec2[0]**2 + self.vec2[1]**2
@@ -398,38 +249,36 @@ class Cube:
 class Cluster:
     """A cluster (ellipse) that represents an object"""
     def __init__(self, data):
-        # input (3, n)
-        assert(data.shape[0]==3)
-        self.data = data
-        self.centroid = np.average(data, axis=1)
+        # input (n, 3)
+        assert(data.shape[1]==3)
+        self.data = reject_outliers(data)
+        self.centroid = np.average(data, axis=0)
         rand = np.random.randn(*data.shape)/1e6
-        data += rand
-        self.cov = np.cov(data[0: 2, :])
-        # self.cov[0, 0] += 1e-5
-        # self.cov[1, 1] += 1e-5
-        self.bound_x = (np.min(data[0, :]), np.max(data[0, :]))
-        self.bound_y = (np.min(data[1, :]), np.max(data[1, :]))
-        # self.bound_z = (np.min(data[2, :]), np.max(data[2, :]))
-        self.bound_z = (0, np.max(data[2, :]))
+        data = data + rand
+        self.cov = np.cov(data[:, 0:2])
+        self.bound_x = (np.min(data[:, 0]), np.max(data[:, 0]))
+        self.bound_y = (np.min(data[:, 1]), np.max(data[:, 1]))
+        self.bound_z = (0, np.max(data[:, 2]))
         self.height = self.bound_z[1]
 
-
-        vals, vecs = eigsorted(self.cov)
-
-        if np.isnan(vals).any() or np.any(vals < 0):
-            self.have_ellipse = False
-            return None
-        self.have_ellipse = True
-        self.etheta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-        self.ewidth, self.eheight = 2 * nstd * np.sqrt(vals)
-        self.ellipse_vert = None
-        self.ellipse_art = None
-        self.bb = MinimumBoundingBox(data[0: 2, :].T)
+        self.bb = MinimumBoundingBox(data[:, :2])
         cp = self.bb.corner_points
         cp = list(cp)
         cp.sort()
         cp[-2:] = reversed(cp[-2:])
         self.corners = cp
+
+        vals, vecs = eigsorted(self.cov)
+
+        if np.isnan(vals).any() or np.any(vals < 0):
+            self.have_ellipse = False
+            return
+        self.have_ellipse = True
+        self.etheta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
+        self.ewidth, self.eheight = 2 * nstd * np.sqrt(vals)
+        self.ellipse_vert = None
+        self.ellipse_art = None
+        
 
     def get_centroid(self):
         """The x-y-z centroid of the cluster"""
@@ -486,7 +335,7 @@ class Cluster:
 
     def close_to(self, cluster_B):
         """Check if a cluster is close to another"""
-        return self.distance_to(cluster_B) < 0.2
+        return self.distance_to(cluster_B) < 0.4
 
     def max_bound(self, cluster_B):
         """The boundary of the union of two clusters"""
@@ -514,6 +363,9 @@ class Cluster:
         dist = (c1-c2)**2
         dist = np.sqrt(np.sum(dist[0:2]))
         return dist
+
+    def __len__(self):
+        return self.data.shape[0]
 
 
 '''
@@ -568,7 +420,14 @@ def create_cube_from_two_clusters(c1, c2):
     cp.sort()
     cp[-2:] = reversed(cp[-2:])
     height = max(c1.height, c2.height)
-    return Cube(cp, height)
+    return Cube(cp, height, len(c1)+len(c2))
+
+def create_cube_from_cluster(c):
+    cp = c.corners
+    cp = list(cp)
+    cp.sort()
+    cp[-2:] = reversed(cp[-2:])
+    return Cube(cp, c.height, len(c))
 
 
 def create_ellipse(center, width, height, angle=0):
@@ -593,12 +452,12 @@ def rotate_and_translate(xs, ys, zs, r, t):
     data = data @ r + t
     return data.T
 
-def cluster_xyz(xs, ys, zs):
+def cluster_xyz(xs, ys, zs, distance=0.2, min_points=1):
     """DBSCAN clustering on point cloud"""
     if not isinstance(xs, np.ndarray) or len(xs) < 2:
         return []
     frame = np.stack((xs, ys, zs), axis=-1)
-    clusters = cluster_DBSCAN(frame)
+    clusters = cluster_DBSCAN(frame, min_points=min_points, distance=distance)
     res = []
     if clusters is None or len(clusters) == 0:
         return []
@@ -606,7 +465,7 @@ def cluster_xyz(xs, ys, zs):
         assert(class_data.shape[1]==3)
         if class_data.shape[0] < 3:
             continue
-        cc = Cluster(class_data.T)
+        cc = Cluster(class_data)
         res.append(cc)
     return res
 
@@ -624,6 +483,10 @@ def distance_to(point1, point2):
     x2, y2 = point2
     return np.sqrt((x2-x1)**2+(y2-y1)**2)
 
-def in_region(cen):
-    """Check if a point is within certain AoV"""
-    return (-AoV < angle_to(cen, (0, d_ver)) < AoV) and cen[1] > -1.2 and -1 < cen[0] < 1
+def reject_outliers(data, m=5):
+    """data (n, 3)"""
+    d = np.abs(data - np.median(data, axis=0))
+    mdev = np.median(d, axis=0)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        s = np.nan_to_num(d/mdev, posinf=0)
+    return data[(s<m).all(axis=1)]
