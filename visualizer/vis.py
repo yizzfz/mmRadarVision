@@ -30,8 +30,8 @@ class Visualizer_AE(Visualizer_Base):
     def plot_combined(self, frame, runflag):
         # update the figure using the frame
         xs1, ys1, zs1 = np.squeeze(np.split(frame.T, 3))
-        self.ls0.set_xdata(xs1)
-        self.ls0.set_ydata(ys1)
+        self.ls0.set_xdata(ys1)
+        self.ls0.set_ydata(zs1)
         self.ls1.set_xdata(xs1)
         self.ls1.set_ydata(zs1)
         keyPressed = plt.waitforbuttonpress(timeout=0.005)

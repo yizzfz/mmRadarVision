@@ -41,19 +41,19 @@ def parse_radarcfg(radarcfg):
     }
     return config
 
-def cluster_DBSCAN(data, min_points=5, eps=0.1, ret_centroids=False):
+def cluster_DBSCAN(data, min_points=5, distance=0.1, ret_centroids=False):
     """DBSCAN algorithm, input (n, 3), output [(n,3), ...]
 
     Parameters:
         data: (n, 3) point cloud.
         min_points: the minimal number of points in a cluster.
-        eps: the maximum distance between points in the same cluster.
+        distance: the maximum distance between points in the same cluster.
         ret_centroids: return the centroids of the clsuters along with the clusters
     """
     assert(len(data.shape)==2 and data.shape[1]==3)
     if not data.any() or data.shape[0] < 10:
         return None
-    model = DBSCAN(eps=eps)
+    model = DBSCAN(eps=distance)
     model.fit((data[:, :2]))
     labels = model.labels_
     clusters = []
@@ -101,3 +101,16 @@ def obj_to_mat(obj, out_dim=out_dim, step=step):
         except IndexError:
             continue
     return mat
+
+def nchannel_from_dataformat(outformat):
+    """Mask output matrix based on configured data format"""
+    m = []
+    if 'p' in outformat:
+        m += [0, 1, 2]
+    if 'v' in outformat:
+        m.append(3)
+    if 's' in outformat:
+        m.append(4)
+    if 'n' in outformat:
+        m.append(5)
+    return len(m)
