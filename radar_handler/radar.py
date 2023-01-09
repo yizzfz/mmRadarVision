@@ -24,7 +24,7 @@ class Radar():
             rotation: tuple of 3 ints, the rotation angle (in degree) in each xyz direction.
             translation: tuple of 3 floats, the translation distance in each xyz direction. 
             sdk: float, if a specific sdk version is used. Default None.
-            outformat: 'p' for pointcloud, 'v' for velocity, 's' for snr, 'n' for noise, e.g. 'pvsn'. 
+            outformat: 'p' for pointcloud, 'v' for velocity, 's' for snr, 'n' for noise, e.g. 'pvsn'. guiMonitor -1, 1 for side info, or guiMonitor -1, 2 for pc
             studio_cli_image: bool, if the radar is loaded with a studio_cli image.
             debug: bool, print debug information.
         """
@@ -38,7 +38,7 @@ class Radar():
         self.debug = debug
         oldsdk = False
         self.side_info = False
-        self.RM = R.from_euler('xyz', rotation, degrees=True).as_matrix()
+        self.RM = R.from_euler('XYZ', rotation, degrees=True).as_matrix()
         self.TM = np.asarray(translation)
         # default sdk for 1443 or 1642 is assumed to be v1.2
         if sdk is None:
@@ -255,6 +255,10 @@ class Radar():
                 res = res[:n_points]
                 side = side[:n_points]
                 res = np.concatenate((res, side), axis=1)
+            # print(self.outformat, res.shape)
+            # if res.shape[0] == 0 or res.shape[1] != len(self.outformat):
+            #     res = np.zeros((1, len(self.outformat)))
+            # else:
             # mask output based on the configured format
             res = res[:, self.outformat]
             frame_queue.put((res))
