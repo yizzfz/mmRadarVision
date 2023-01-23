@@ -62,7 +62,7 @@ class Visualizer_Base():
                     if not q.empty():
                         update = True
                         # capture the frame
-                        frame = q.get(block=True, timeout=3)
+                        frame, timestamp = q.get(block=True, timeout=3)
                         # apply all FMs
                         if self.fm[i]:
                             for f in self.fm[i]:
@@ -75,7 +75,7 @@ class Visualizer_Base():
                 # if at least one radar has new data
                 if update:
                     if self.logger:                 # save the data
-                        self.logger.update(self.frames[:], datatype='radar')
+                        self.logger.update(self.frames[:], datatype='radar', timestamp=timestamp)
                     if self.cam:                    # capture camera frame
                         self.cam.update(self.frames[:])
                         cam_frame = self.cam.get()

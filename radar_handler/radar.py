@@ -6,6 +6,7 @@ import numpy as np
 import sys
 import warnings
 from scipy.spatial.transform import Rotation as R
+import datetime
 
 magic_word = b'\x02\x01\x04\x03\x06\x05\x08\x07'
 
@@ -202,6 +203,7 @@ class Radar():
 
     def decode_data(self, data, frame_queue):
         """Decode a data packet"""
+        timestamp = datetime.datetime.now()
         if self.debug:
             self.log(f'Decoding data packet of size {len(data)}')
 
@@ -264,7 +266,7 @@ class Radar():
             # else:
             # mask output based on the configured format
             res = res[:, self.outformat]
-            frame_queue.put((res))
+            frame_queue.put((res, timestamp))
         return res
        
     def log(self, txt):

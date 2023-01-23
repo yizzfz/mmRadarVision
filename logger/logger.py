@@ -18,22 +18,21 @@ class Logger():
             os.mkdir(path)
         self.logfile = os.path.abspath(os.path.join(path, f'{timestamp}-{name}.pkl'))
         self.logfile_partial = os.path.abspath(os.path.join(path, f'{timestamp}-{name}'))
-        self.D = {}
+        self.D = defaultdict(list)
         self.header = {}
         self.t0 = None
         self.t1 = None
-
         self.postfix = 0
         self.save_interval = save_interval
         self.starttime = datetime.datetime.now()
 
-    def update(self, data, datatype='misc'):
+    def update(self, data, datatype='misc', timestamp=None):
         """Store one frame of data of certain type"""
         if self.t0 is None:
             self.t0 = datetime.datetime.now()
         self.t1 = datetime.datetime.now()
-        if not datatype in self.D:
-            self.D[datatype] = []
+        if timestamp is not None:
+            self.D['timestamps'].append(timestamp)
         self.D[datatype].append(data)
         if (datetime.datetime.now() - self.starttime).total_seconds() > self.save_interval:
             self.save_at_interval()
@@ -60,8 +59,8 @@ class Logger():
 
         logfile = self.logfile if custom_logfile is None else custom_logfile
         time_elapsed = (self.t1-self.t0).total_seconds()
-        self.header['start_time'] = self.t0.strftime('%m.%d-%H:%M:%S')
-        self.header['stop_time'] = self.t1.strftime('%m.%d-%H:%M:%S')
+        self.header['start_time'] = self.t0.strftime('%m.%d-%H:%M:%S.%f')
+        self.header['stop_time'] = self.t1.strftime('%m.%d-%H:%M:%S.%f')
         self.header['time_elapsed'] = time_elapsed
         self.header['data_types'] = list(self.D.keys())
         self.header['num_data'] = data_length
