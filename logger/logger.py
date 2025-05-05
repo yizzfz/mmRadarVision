@@ -13,7 +13,7 @@ class Logger():
             name: name of the record result file.
             path: path of the record result file.
         """
-        timestamp = datetime.datetime.now().strftime('%m%d-%H%M')
+        timestamp = datetime.datetime.now().strftime('%m%d-%H%M%S.%f')
         if not os.path.exists(path):
             os.mkdir(path)
         self.logfile = os.path.abspath(os.path.join(path, f'{timestamp}-{name}.pkl'))

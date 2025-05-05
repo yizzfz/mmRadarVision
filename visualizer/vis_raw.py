@@ -121,7 +121,7 @@ class Visualizer_Raw_Pointcloud(Visualizer_Raw):
                 elif not self.radar_queue.empty():
                     if self.radar_queue.qsize() > 10:
                         self.log(f'Warning: radar queue size {self.radar_queue.qsize()}')
-                    data = self.radar_queue.get(block=True)     # data shape (2, n_chirps, n_samples), 2 for fft mags and phases
+                    data = self.radar_queue.get(block=True)     # pointcloud, timestamp
                     if self.logger:
                         self.logger.update(data, datatype='radar-pc')
                     self.plot_pc(data)
@@ -149,11 +149,11 @@ class Visualizer_Raw_Pointcloud(Visualizer_Raw):
         plt.show()
 
     def plot_pc(self, frame):
-        # print(frame.shape)
-        frame = frame[:, :3]
-        xs1, ys1, zs1 = np.squeeze(np.split(frame.T, 3))
-        self.ls1.set_xdata(xs1)
-        self.ls1.set_ydata(zs1)
+        frame = frame[0][:, :3]
+        if frame.shape[0] > 1:
+            xs1, ys1, zs1 = np.squeeze(np.split(frame, 3, axis=-1))
+            self.ls1.set_xdata(xs1)
+            self.ls1.set_ydata(zs1)
         keyPressed = plt.waitforbuttonpress(timeout=0.005)
         if keyPressed:
             self.runflag.value = 0

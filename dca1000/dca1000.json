@@ -19,7 +19,7 @@
             "DCA1000DataPort": 4098
         },
         "captureConfig": {
-            "fileBasePath": "D:\\dca1000",
+            "fileBasePath": "C:\\dca1000",
             "filePrefix": "1642",
             "maxRecFileSize_MB": 1024,
             "sequenceNumberEnable": 1,

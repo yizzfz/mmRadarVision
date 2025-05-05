@@ -1,3 +1,6 @@
+"""
+This demo reads point cloud data from <= 2 radars. 
+"""
 import os
 os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 import multiprocessing
@@ -7,7 +10,6 @@ from frame_manager import Frame_Manager_Base, Frame_Manager_Cluster, Frame_Manag
 from config import *
 from logger import Logger
 from camera import Camera_Base, Camera_Simple
-from heart_sensor import Polar
 import matplotlib
 import numpy as np
 import signal
@@ -15,16 +17,14 @@ import signal
 matplotlib.use('TkAgg')
 np.set_printoptions(precision=4, suppress=True)
 
-radar_to_use = [2, 3]   # select which radar(s) to use, int or list(int)
+radar_to_use = [0]   # select which radar(s) to use, int or list(int)
 camera = None           # select which camera to use, int or None
-heart_sensor = None     # select which heart rate sensor to use using the MAC addr, str
+data_saving_location = 'C:/mmwave-log'
 
 def vis_thread(radars, queues, runflag, cam=None, heart_sensor=None):
     if cam is not None:
         cam = Camera_Base(cam)
-    if heart_sensor is not None:
-        heart_sensor = Polar(heart_sensor, task='hr', data_only=True)
-    logger = Logger('tmp', path='d:/mmwave-log')
+    logger = Logger('demo', path=data_saving_location)
     logger = None
     num_radar = len(radars)
     if num_radar == 1:
@@ -69,7 +69,7 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
 
     threads = []
-    t0 = multiprocessing.Process(target=vis_thread, args=(radars, queues, runflag, camera, heart_sensor))
+    t0 = multiprocessing.Process(target=vis_thread, args=(radars, queues, runflag, camera))
     threads.append(t0)
 
     for i in range(num_radar):

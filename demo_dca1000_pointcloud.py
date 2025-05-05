@@ -1,12 +1,12 @@
 """
-This demo reads raw IQ data from a single radar. 
-It works with the OOB firmware! 
+This demo reads raw IQ data + point cloud from a single radar. 
+It requires the OOB firmware! 
 """
 import os
 os.environ['FOR_DISABLE_CONSOLE_CTRL_HANDLER'] = '1'
 import multiprocessing
 from radar_handler import Radar
-from visualizer import Visualizer_Raw
+from visualizer import Visualizer_Raw_Pointcloud
 from config import *
 from logger import Logger
 from dca1000 import DCA1000Handler
@@ -23,12 +23,12 @@ radar_to_use = 0            # select which radar(s) to use, int or list(int)
 dataformat = 'raw'          # 'raw' for raw data and 'fft' for range-FFT data
 data_saving_location = 'C:/mmwave-log'
 
-def vis_raw_thread(queue, runflag, config):
+def vis_raw_thread(dca1000_queue, pointcloud_queue, runflag, config):
     """Visulization thread that hosts the Visualizer module and the peripherals"""
     print(f'[main] Visualizer PID {multiprocessing.current_process().pid}')
     logger = Logger('demo', path=data_saving_location)
     # initialize the visuzlizer for raw data processing 
-    vis = Visualizer_Raw(config, queue, runflag, polar=None, logger=logger, dataformat=dataformat)
+    vis = Visualizer_Raw_Pointcloud(config, dca1000_queue, pointcloud_queue, runflag, polar=None, logger=logger, dataformat=dataformat)
     vis.run()
  
 def radar_thread(queue, runflag, radar):
@@ -67,7 +67,7 @@ def main():
 
     # define one visualizer thread
     threads = []
-    t1 = multiprocessing.Process(target=vis_raw_thread, args=(dca1000_queue, runflag, config))
+    t1 = multiprocessing.Process(target=vis_raw_thread, args=(dca1000_queue, radar_queue, runflag, config))
     threads.append(t1)
 
     # define one DCA1000EVM thread

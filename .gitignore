@@ -6,6 +6,8 @@ data
 .vscode
 config.py
 network/ckpts
+CLI_LogFile.txt
+tmp*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
