@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 np.set_printoptions(precision=2, suppress=True)
 
 """
-Polar Ref: https://github.com/polarofficial/polar-ble-sdk/blob/master/technical_documentation/Polar_Measurement_Data_Specification.pdf
+Polar Ref: https://github.com/polarofficial/polar-ble-sdk/blob/39c809ab4a3398d3ea88ff8a0cc6f6d44cd58bda/technical_documentation/Polar_Measurement_Data_Specification.pdf
 HR measurement Ref: https://github.com/oesmith/gatt-xml/blob/master/org.bluetooth.characteristic.heart_rate_measurement.xml 
 """
 
